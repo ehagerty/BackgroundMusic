@@ -19,7 +19,7 @@
 #
 # build_and_install.sh
 #
-# Copyright © 2016-2022, 2024 Kyle Neideck
+# Copyright © 2016-2022, 2024, 2026 Kyle Neideck
 # Copyright © 2016 Nick Jacques
 #
 # Builds and installs BGMApp, BGMDriver and BGMXPCHelper. Requires xcodebuild and Xcode.
@@ -668,20 +668,28 @@ else
     DSTROOT_ARG=""
 fi
 
-# Enable AddressSanitizer in debug builds to catch memory bugs. Allow ENABLE_ASAN to be set as an
-# environment variable by only setting it here if it isn't already set. (Used by package.sh.)
+# AddressSanitizer config. BGMDriver and BGMXPCHelper can't use ASan because macOS platform policy blocks it (even in a
+# VM with SIP disabled). So only BGMApp can use ASan. We enable it in debug builds by default.
 if [[ "${CONFIGURATION}" == "Debug" ]]; then
-    ENABLE_ASAN="${ENABLE_ASAN:-YES}"
+    ENABLE_ASAN_DRIVER="${ENABLE_ASAN_DRIVER:-${ENABLE_ASAN:-NO}}"
+    ENABLE_ASAN_XPCHELPER="${ENABLE_ASAN_XPCHELPER:-${ENABLE_ASAN:-NO}}"
+    ENABLE_ASAN_APP="${ENABLE_ASAN_APP:-${ENABLE_ASAN:-YES}}"
 else
-    ENABLE_ASAN="${ENABLE_ASAN:-NO}"
+    ENABLE_ASAN_DRIVER="${ENABLE_ASAN_DRIVER:-${ENABLE_ASAN:-NO}}"
+    ENABLE_ASAN_XPCHELPER="${ENABLE_ASAN_XPCHELPER:-${ENABLE_ASAN:-NO}}"
+    ENABLE_ASAN_APP="${ENABLE_ASAN_APP:-${ENABLE_ASAN:-NO}}"
 fi
 
-enableUBSanArg() {
-    if [[ "${ENABLE_UBSAN+}" != "" ]]; then
-        echo "-enableUndefinedBehaviorSanitizer"
-        echo "$ENABLE_UBSAN"
-    fi
-}
+# UBSan config. Same defaults as ASan. (The platform policy restrictions are the same.)
+if [[ "${CONFIGURATION}" == "Debug" ]]; then
+    ENABLE_UBSAN_DRIVER="${ENABLE_UBSAN_DRIVER:-${ENABLE_UBSAN:-NO}}"
+    ENABLE_UBSAN_XPCHELPER="${ENABLE_UBSAN_XPCHELPER:-${ENABLE_UBSAN:-NO}}"
+    ENABLE_UBSAN_APP="${ENABLE_UBSAN_APP:-${ENABLE_UBSAN:-YES}}"
+else
+    ENABLE_UBSAN_DRIVER="${ENABLE_UBSAN_DRIVER:-${ENABLE_UBSAN:-NO}}"
+    ENABLE_UBSAN_XPCHELPER="${ENABLE_UBSAN_XPCHELPER:-${ENABLE_UBSAN:-NO}}"
+    ENABLE_UBSAN_APP="${ENABLE_UBSAN_APP:-${ENABLE_UBSAN:-NO}}"
+fi
 
 # Clean all projects. Done separately to workaround what I think is a bug in Xcode 10.0. If you just
 # add "clean" to the other xcodebuild commands, they seem to fail because of the DSTROOT="/" arg.
@@ -729,6 +737,10 @@ ownershipArgs() {
     fi
 }
 
+# We have to set the ENABLE_ADDRESS_SANITIZER and CLANG_UNDEFINED_BEHAVIOR_SANITIZER build settings in addition to
+# -enableAddressSanitizer and -enableUndefinedBehaviorSanitizer because the schemes have them enabled in their Build
+# actions and the command-line opts don't override that.
+
 # BGMDriver
 
 echo "[1/3] ${ACTIONING} the virtual audio device $(bold_face ${DRIVER_DIR}) to" \
@@ -739,11 +751,13 @@ echo "[1/3] ${ACTIONING} the virtual audio device $(bold_face ${DRIVER_DIR}) to"
     # Build and, if requested, archive or install BGMDriver.
     ${SUDO} "${XCODEBUILD}" -scheme "Background Music Device" \
                             -configuration ${CONFIGURATION} \
-                            -enableAddressSanitizer ${ENABLE_ASAN} \
-                            $(enableUBSanArg) \
+                            -enableAddressSanitizer ${ENABLE_ASAN_DRIVER} \
+                            -enableUndefinedBehaviorSanitizer ${ENABLE_UBSAN_DRIVER} \
                             $(archivePath BGMDriver) \
                             BUILD_DIR=./build \
                             RUN_CLANG_STATIC_ANALYZER=0 \
+                            ENABLE_ADDRESS_SANITIZER=${ENABLE_ASAN_DRIVER} \
+                            CLANG_UNDEFINED_BEHAVIOR_SANITIZER=${ENABLE_UBSAN_DRIVER} \
                             $(ownershipArgs) \
                             ${DSTROOT_ARG} \
                             ${XCODEBUILD_OPTIONS} \
@@ -769,11 +783,13 @@ xpcHelperInstallPathArg() {
 (disable_error_handling
     ${SUDO} "${XCODEBUILD}" -scheme BGMXPCHelper \
                             -configuration ${CONFIGURATION} \
-                            -enableAddressSanitizer ${ENABLE_ASAN} \
-                            $(enableUBSanArg) \
+                            -enableAddressSanitizer ${ENABLE_ASAN_XPCHELPER} \
+                            -enableUndefinedBehaviorSanitizer ${ENABLE_UBSAN_XPCHELPER} \
                             $(archivePath BGMXPCHelper) \
                             BUILD_DIR=./build \
                             RUN_CLANG_STATIC_ANALYZER=0 \
+                            ENABLE_ADDRESS_SANITIZER=${ENABLE_ASAN_XPCHELPER} \
+                            CLANG_UNDEFINED_BEHAVIOR_SANITIZER=${ENABLE_UBSAN_XPCHELPER} \
                             $(xpcHelperInstallPathArg) \
                             $(ownershipArgs) \
                             REAL_ACTION="${XCODEBUILD_ACTION}" \
@@ -791,11 +807,13 @@ echo "[3/3] ${ACTIONING} $(bold_face ${APP_DIR}) to $(bold_face ${APP_PATH})" \
 (disable_error_handling
     ${SUDO} "${XCODEBUILD}" -scheme "Background Music" \
                             -configuration ${CONFIGURATION} \
-                            -enableAddressSanitizer ${ENABLE_ASAN} \
-                            $(enableUBSanArg) \
+                            -enableAddressSanitizer ${ENABLE_ASAN_APP} \
+                            -enableUndefinedBehaviorSanitizer ${ENABLE_UBSAN_APP} \
                             $(archivePath BGMApp) \
                             BUILD_DIR=./build \
                             RUN_CLANG_STATIC_ANALYZER=0 \
+                            ENABLE_ADDRESS_SANITIZER=${ENABLE_ASAN_APP} \
+                            CLANG_UNDEFINED_BEHAVIOR_SANITIZER=${ENABLE_UBSAN_APP} \
                             $(ownershipArgs) \
                             ${DSTROOT_ARG} \
                             ${XCODEBUILD_OPTIONS} \
@@ -827,14 +845,14 @@ if [[ "${XCODEBUILD_ACTION}" == "install" ]]; then
     # The extra or-clauses are fallback versions of the command that restarts coreaudiod. Apparently
     # some of these commands don't work with older versions of launchctl, so I figure there's no
     # harm in trying a bunch of different ways (which should all work).
-    (sudo launchctl kickstart -k system/com.apple.audio.coreaudiod &>/dev/null || \
+    (sudo killall coreaudiod &>/dev/null || \
+        sudo launchctl kickstart -k system/com.apple.audio.coreaudiod &>/dev/null || \
         sudo launchctl kill SIGTERM system/com.apple.audio.coreaudiod &>/dev/null || \
         sudo launchctl kill TERM system/com.apple.audio.coreaudiod &>/dev/null || \
         sudo launchctl kill 15 system/com.apple.audio.coreaudiod &>/dev/null || \
         sudo launchctl kill -15 system/com.apple.audio.coreaudiod &>/dev/null || \
         (sudo launchctl unload "${COREAUDIOD_PLIST}" &>/dev/null && \
-            sudo launchctl load "${COREAUDIOD_PLIST}" &>/dev/null) || \
-        sudo killall coreaudiod &>/dev/null) && \
+            sudo launchctl load "${COREAUDIOD_PLIST}" &>/dev/null)) && \
         sleep 5
 
     # Invalidate sudo ticket
