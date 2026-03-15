@@ -94,7 +94,6 @@ static BGM_Client client2(&client2Info);
     
     [BGM_ClientMapTests assertClient:c1 hasInfoEqualTo:&info];
     
-    XCTAssertEqual(c1->mDoingIO, c2->mDoingIO);
     XCTAssertEqual(c1->mIsMusicPlayer, c2->mIsMusicPlayer);
     XCTAssertEqual(c1->mRelativeVolume, c2->mRelativeVolume);
 }
@@ -126,7 +125,6 @@ static BGM_Client client2(&client2Info);
     // A client to use as the out argument for GetClientNonRT when we don't expect to get a client back
     BGM_Client notRetrievedClient(&client2Info);
     notRetrievedClient.mRelativeVolume = 3.5;
-    notRetrievedClient.mDoingIO = true;
     
     // A known-good copy to check against
     BGM_Client notRetrievedClientCopy(notRetrievedClient);
@@ -151,7 +149,6 @@ static BGM_Client client2(&client2Info);
     
     // Check against hardcoded values as well just in case there's a problem with BGM_Client's copy constructor
     XCTAssertEqual(notRetrievedClient.mRelativeVolume, 3.5);
-    XCTAssert(notRetrievedClient.mDoingIO);
 }
 
 - (void)testAddRemoveMultipleClients {

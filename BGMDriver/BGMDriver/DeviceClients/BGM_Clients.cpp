@@ -17,7 +17,7 @@
 //  BGM_Clients.cpp
 //  BGMDriver
 //
-//  Copyright © 2016, 2017, 2019, 2025 Kyle Neideck
+//  Copyright © 2016, 2017, 2019, 2025, 2026 Kyle Neideck
 //  Copyright © 2017 Andrew Tonner
 //
 
@@ -33,6 +33,10 @@
 #include "CAException.h"
 #include "CACFDictionary.h"
 #include "CADispatchQueue.h"
+#include "CAHostTimeBase.h"
+
+// System Includes
+#include <mach/mach_time.h>
 
 
 #pragma mark Construction/Destruction
@@ -74,7 +78,7 @@ void    BGM_Clients::AddClient(BGM_Client inClient)
     // If we're adding BGMApp, update our local copy of its client ID
     if(inClient.mBundleID.IsValid() && inClient.mBundleID == kBGMAppBundleID)
     {
-        mBGMAppClientID = inClient.mClientID;
+        mBGMAppClientID.store(inClient.mClientID, std::memory_order_relaxed);
     }
 }
 
@@ -85,154 +89,75 @@ void    BGM_Clients::RemoveClient(const UInt32 inClientID)
     BGM_Client theRemovedClient = mClientMap.RemoveClient(inClientID);
     
     // If we're removing BGMApp, clear our local copy of its client ID
-    if(theRemovedClient.mClientID == mBGMAppClientID)
+    if(theRemovedClient.mClientID == static_cast<UInt32>(mBGMAppClientID.load(std::memory_order_relaxed)))
     {
-        mBGMAppClientID = -1;
+        mBGMAppClientID.store(-1, std::memory_order_relaxed);
     }
 }
 
 #pragma mark IO Status
 
-bool    BGM_Clients::StartIONonRT(UInt32 inClientID)
-{
-    CAMutex::Locker theLocker(mMutex);
-    
-    bool didStartIO = false;
-    
-    BGM_Client theClient;
-    bool didFindClient = mClientMap.GetClientNonRT(inClientID, &theClient);
-    
-    ThrowIf(!didFindClient, BGM_InvalidClientException(), "BGM_Clients::StartIO: Cannot start IO for client that was never added");
-    
-    bool sendIsRunningNotification = false;
-    bool sendIsRunningSomewhereOtherThanBGMAppNotification = false;
+// TODO: We could remove kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp and all of the code that
+//       manages it (the functions below, BGM_Device::mInactivityTimer, etc.) if we split BGMDevice into a separate
+//       input device and output device. BGMApp doesn't have an IOProc for BGMDevice's output device/stream, just its
+//       input, so it would be able to use kAudioDevicePropertyDeviceIsRunningSomewhere to tell when apps are playing
+//       audio to the output BGMDevice.
+//
+//       Splitting BGMDevice would also get rid of the microphone permissions dialogs that appear on macOS Tahoe when
+//       some other apps play audio to BGMDevice. I'd guess those apps are doing something like enumerating all streams
+//       (not just output ones) and requesting info about the input stream even though they don't need it, and that
+//       triggers the permission prompt.
 
-    if(!theClient.mDoingIO)
+bool    BGM_Clients::ClientsOtherThanBGMAppRunningIO() const noexcept
+{
+    // 2 seconds in mach ticks
+    static const uint64_t kThreshold = CAHostTimeBase::ConvertFromNanos(2ULL * NSEC_PER_SEC);
+
+    const uint64_t lastNonBGMAppIOTime = mLastNonBGMAppIOTime.load(std::memory_order_relaxed);
+    return lastNonBGMAppIOTime != 0 && mach_absolute_time() - lastNonBGMAppIOTime < kThreshold;
+}
+
+void    BGM_Clients::RecordNonBGMAppIO(const UInt32 inClientID) noexcept
+{
+    static_assert(ATOMIC_LLONG_LOCK_FREE == 2, "std::atomic<uint64_t> must be lock-free for RT safety");
+
+    // RT-safe: only uses atomics.
+    if(static_cast<SInt64>(inClientID) != mBGMAppClientID.load(std::memory_order_relaxed))
     {
-        // Make sure we can start
-        ThrowIf(mStartCount == UINT64_MAX, CAException(kAudioHardwareIllegalOperationError), "BGM_Clients::StartIO: failed to start because the ref count was maxxed out already");
-        
-        DebugMsg("BGM_Clients::StartIO: Client %u (%s, %d) starting IO",
-                 inClientID,
-                 CFStringGetCStringPtr(theClient.mBundleID.GetCFString(), kCFStringEncodingUTF8),
-                 theClient.mProcessID);
-        
-        mClientMap.StartIONonRT(inClientID);
-        
-        mStartCount++;
-        
-        // Update mStartCountExcludingBGMApp
-        if(!IsBGMApp(inClientID))
-        {
-            ThrowIf(mStartCountExcludingBGMApp == UINT64_MAX, CAException(kAudioHardwareIllegalOperationError), "BGM_Clients::StartIO: failed to start because mStartCountExcludingBGMApp was maxxed out already");
-            
-            mStartCountExcludingBGMApp++;
-            
-            if(mStartCountExcludingBGMApp == 1)
-            {
-                sendIsRunningSomewhereOtherThanBGMAppNotification = true;
-            }
-        }
-        
-        // Return true if no other clients were running IO before this one started, which means the device should start IO
-        didStartIO = (mStartCount == 1);
-        sendIsRunningNotification = didStartIO;
+        mLastNonBGMAppIOTime.store(mach_absolute_time(), std::memory_order_relaxed);
     }
-    
-    Assert(mStartCountExcludingBGMApp == mStartCount - 1 || mStartCountExcludingBGMApp == mStartCount,
-           "mStartCount and mStartCountExcludingBGMApp are out of sync");
-    
-    SendIORunningNotifications(sendIsRunningNotification, sendIsRunningSomewhereOtherThanBGMAppNotification);
-
-    return didStartIO;
 }
 
-bool    BGM_Clients::StopIONonRT(UInt32 inClientID)
+void    BGM_Clients::SendIORunningPropertyNotification()
 {
-    CAMutex::Locker theLocker(mMutex);
-    
-    bool didStopIO = false;
-    
-    BGM_Client theClient;
-    bool didFindClient = mClientMap.GetClientNonRT(inClientID, &theClient);
-    
-    ThrowIf(!didFindClient, BGM_InvalidClientException(), "BGM_Clients::StopIO: Cannot stop IO for client that was never added");
-    
-    bool sendIsRunningNotification = false;
-    bool sendIsRunningSomewhereOtherThanBGMAppNotification = false;
-    
-    if(theClient.mDoingIO)
+    // Send a property change notification if the property has changed since the last time we sent a notification.
+    const bool isRunning = ClientsOtherThanBGMAppRunningIO();
+    const bool wasRunning = mLastNotifiedIsRunning.exchange(isRunning, std::memory_order_relaxed);
+
+    if(isRunning != wasRunning)
     {
-        DebugMsg("BGM_Clients::StopIO: Client %u (%s, %d) stopping IO",
-                 inClientID,
-                 CFStringGetCStringPtr(theClient.mBundleID.GetCFString(), kCFStringEncodingUTF8),
-                 theClient.mProcessID);
-        
-        mClientMap.StopIONonRT(inClientID);
-        
-        ThrowIf(mStartCount <= 0, CAException(kAudioHardwareIllegalOperationError), "BGM_Clients::StopIO: Underflowed mStartCount");
-        
-        mStartCount--;
-        
-        // Update mStartCountExcludingBGMApp
-        if(!IsBGMApp(inClientID))
-        {
-            ThrowIf(mStartCountExcludingBGMApp <= 0, CAException(kAudioHardwareIllegalOperationError), "BGM_Clients::StopIO: Underflowed mStartCountExcludingBGMApp");
-            
-            mStartCountExcludingBGMApp--;
-            
-            if(mStartCountExcludingBGMApp == 0)
-            {
-                sendIsRunningSomewhereOtherThanBGMAppNotification = true;
-            }
-        }
-        
-        // Return true if we stopped IO entirely (i.e. there are no clients still running IO)
-        didStopIO = (mStartCount == 0);
-        sendIsRunningNotification = didStopIO;
-    }
-    
-    Assert(mStartCountExcludingBGMApp == mStartCount - 1 || mStartCountExcludingBGMApp == mStartCount,
-           "mStartCount and mStartCountExcludingBGMApp are out of sync");
-    
-    SendIORunningNotifications(sendIsRunningNotification, sendIsRunningSomewhereOtherThanBGMAppNotification);
-    
-    return didStopIO;
-}
-
-bool    BGM_Clients::ClientsRunningIO() const
-{
-    return mStartCount > 0;
-}
-
-bool    BGM_Clients::ClientsOtherThanBGMAppRunningIO() const
-{
-    return mStartCountExcludingBGMApp > 0;
-}
-
-void    BGM_Clients::SendIORunningNotifications(bool sendIsRunningNotification, bool sendIsRunningSomewhereOtherThanBGMAppNotification) const
-{
-    if(sendIsRunningNotification || sendIsRunningSomewhereOtherThanBGMAppNotification)
-    {
+        DebugMsg("BGM_Clients::SendIORunningPropertyNotification: isRunningSomewhereOtherThanBGMApp changed to %s",
+                 isRunning ? "true" : "false");
         CADispatchQueue::GetGlobalSerialQueue().Dispatch(false, ^{
-            AudioObjectPropertyAddress theChangedProperties[2];
-            UInt32 theNotificationCount = 0;
+            AudioObjectPropertyAddress theAddr = kBGMRunningSomewhereOtherThanBGMAppAddress;
+            BGM_PlugIn::Host_PropertiesChanged(mOwnerDeviceID, 1, &theAddr);
+        });
+    }
+}
 
-            if(sendIsRunningNotification)
-            {
-                DebugMsg("BGM_Clients::SendIORunningNotifications: Sending kAudioDevicePropertyDeviceIsRunning");
-                theChangedProperties[0] = { kAudioDevicePropertyDeviceIsRunning, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster };
-                theNotificationCount++;
-            }
+void    BGM_Clients::StopIO()
+{
+    mLastNonBGMAppIOTime.store(0, std::memory_order_relaxed);
 
-            if(sendIsRunningSomewhereOtherThanBGMAppNotification)
-            {
-                DebugMsg("BGM_Clients::SendIORunningNotifications: Sending kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp");
-                theChangedProperties[theNotificationCount] = kBGMRunningSomewhereOtherThanBGMAppAddress;
-                theNotificationCount++;
-            }
+    // Send a property change notification if the property was true the last time we sent a notification.
+    const bool wasRunning = mLastNotifiedIsRunning.exchange(false, std::memory_order_relaxed);
 
-            BGM_PlugIn::Host_PropertiesChanged(mOwnerDeviceID, theNotificationCount, theChangedProperties);
+    if(wasRunning)
+    {
+        DebugMsg("BGM_Clients::StopIO: isRunningSomewhereOtherThanBGMApp changed to false");
+        CADispatchQueue::GetGlobalSerialQueue().Dispatch(false, ^{
+            AudioObjectPropertyAddress theAddr = kBGMRunningSomewhereOtherThanBGMAppAddress;
+            BGM_PlugIn::Host_PropertiesChanged(mOwnerDeviceID, 1, &theAddr);
         });
     }
 }

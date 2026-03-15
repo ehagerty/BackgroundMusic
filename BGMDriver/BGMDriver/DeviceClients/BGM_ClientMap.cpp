@@ -413,15 +413,6 @@ bool BGM_ClientMap::SetClientsPanPosition(CACFString searchKey, SInt32 inPanPosi
     return didChangePanPosition;
 }
 
-void    BGM_ClientMap::UpdateClientIOStateNonRT(UInt32 inClientID, bool inDoingIO)
-{
-    CAMutex::Locker theShadowMapsLocker(mShadowMapsMutex);
-    
-    mClientMapShadow[inClientID].mDoingIO = inDoingIO;
-    SwapInShadowMaps();
-    mClientMapShadow[inClientID].mDoingIO = inDoingIO;
-}
-
 void    BGM_ClientMap::SwapInShadowMaps()
 {
     mTaskQueue->QueueSync_SwapClientShadowMaps(this);

@@ -867,6 +867,17 @@ OSStatus    BGMPlayThrough::BGMDeviceListenerProc(AudioObjectID inObjectID,
 // static
 void    BGMPlayThrough::HandleBGMDeviceIsRunning(BGMPlayThrough* refCon)
 {
+    // TODO: This handler never does anything useful. kAudioDevicePropertyDeviceIsRunning is a per-client property
+    //       managed by the HAL. It fires when BGMApp's own IO starts/stops on the device. So by the time this handler
+    //       runs, playthrough has already been started by BGMXPCListener::startPlayThroughSyncWithReply, and the
+    //       Start() call here is redundant (but harmless).
+    //
+    //       That said, we might want to consider using kAudioDevicePropertyDeviceIsRunningSomewhere instead, which does
+    //       what we thought kAudioDevicePropertyDeviceIsRunning did. (Fires as soon as any client starts
+    //       IO.) It might be faster than the XPC call in some cases, so by having both we'd always start as fast as
+    //       possible. It would also let BGMApp start playthrough even if BGMXPCHelper isn't working for some reason.
+    //
+    //       The other option is to just delete this function.
     DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunning: Got notification");
     
     // This is dispatched because it can block and

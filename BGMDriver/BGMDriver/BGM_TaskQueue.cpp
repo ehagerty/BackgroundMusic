@@ -168,30 +168,6 @@ void    BGM_TaskQueue::QueueAsync_SendPropertyNotification(AudioObjectPropertySe
     QueueOnNonRealtimeThread(theTask);
 }
 
-bool    BGM_TaskQueue::Queue_UpdateClientIOState(bool inSync, BGM_Clients* inClients, UInt32 inClientID, bool inDoingIO)
-{
-    DebugMsg("BGM_TaskQueue::Queue_UpdateClientIOState: Queueing %s %s",
-             (inDoingIO ? "kBGMTaskStartClientIO" : "kBGMTaskStopClientIO"),
-             (inSync ? "synchronously" : "asynchronously"));
-    
-    BGM_TaskID theTaskID = (inDoingIO ? kBGMTaskStartClientIO : kBGMTaskStopClientIO);
-    UInt64 theClientsPtrArg = reinterpret_cast<UInt64>(inClients);
-    UInt64 theClientIDTaskArg = static_cast<UInt64>(inClientID);
-    
-    if(inSync)
-    {
-        return QueueSync(theTaskID, false, theClientsPtrArg, theClientIDTaskArg);
-    }
-    else
-    {
-        BGM_Task theTask(theTaskID, /* inIsSync = */ false, theClientsPtrArg, theClientIDTaskArg);
-        QueueOnNonRealtimeThread(theTask);
-        
-        // This method's return value isn't used when queueing async, because we can't know what it should be yet.
-        return false;
-    }
-}
-
 UInt64    BGM_TaskQueue::QueueSync(BGM_TaskID inTaskID, bool inRunOnRealtimeThread, UInt64 inTaskArg1, UInt64 inTaskArg2)
 {
     DebugMsg("BGM_TaskQueue::QueueSync: Queueing task synchronously to be processed on the %s thread. inTaskID=%d inTaskArg1=%llu inTaskArg2=%llu",
@@ -429,43 +405,6 @@ bool    BGM_TaskQueue::ProcessNonRealTimeThreadTask(BGM_Task* inTask)
             DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Stopping");
             // Return that the thread should stop itself
             return true;
-            
-        case kBGMTaskStartClientIO:
-            DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Processing kBGMTaskStartClientIO");
-            try
-            {
-                BGM_Clients* theClients = reinterpret_cast<BGM_Clients*>(inTask->GetArg1());
-                bool didStartIO = BGM_ClientTasks::StartIONonRT(theClients, static_cast<UInt32>(inTask->GetArg2()));
-                inTask->SetReturnValue(didStartIO);
-            }
-            // TODO: Catch the other types of exceptions BGM_ClientTasks::StartIONonRT can throw here as well. Set the task's return
-            //       value (rather than rethrowing) so the exceptions can be handled if the task was queued sync. Then
-            //       QueueSync_StartClientIO can throw some exception and BGM_StartIO can return an appropriate error code to the
-            //       HAL, instead of the driver just crashing.
-            //
-            //       Do the same for the kBGMTaskStopClientIO case below. And should we set a return value in the catch block for
-            //       BGM_InvalidClientException as well, so it can also be rethrown in QueueSync_StartClientIO and then handled?
-            catch(BGM_InvalidClientException)
-            {
-                DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Ignoring BGM_InvalidClientException thrown by StartIONonRT. %s",
-                         "It's possible the client was removed before this task was processed.");
-            }
-            break;
-
-        case kBGMTaskStopClientIO:
-            DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Processing kBGMTaskStopClientIO");
-            try
-            {
-                BGM_Clients* theClients = reinterpret_cast<BGM_Clients*>(inTask->GetArg1());
-                bool didStopIO = BGM_ClientTasks::StopIONonRT(theClients, static_cast<UInt32>(inTask->GetArg2()));
-                inTask->SetReturnValue(didStopIO);
-            }
-            catch(BGM_InvalidClientException)
-            {
-                DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Ignoring BGM_InvalidClientException thrown by StopIONonRT. %s",
-                         "It's possible the client was removed before this task was processed.");
-            }
-            break;
             
         case kBGMTaskSendPropertyNotification:
             DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Processing kBGMTaskSendPropertyNotification");

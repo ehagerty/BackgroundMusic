@@ -1,3 +1,28 @@
+// This file is part of Background Music.
+//
+// Background Music is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 2 of the
+// License, or (at your option) any later version.
+//
+// Background Music is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Background Music. If not, see <http://www.gnu.org/licenses/>.
+
+//
+//  CAMutex.h
+//  PublicUtility
+//
+//  Copyright (C) 2014 Apple Inc. All Rights Reserved.
+//  Copyright © 2026 Kyle Neideck
+//
+//  Original license header follows.
+//
+
 /*
      File: CAMutex.h 
  Abstract:  Part of CoreAudio Utility Classes  
@@ -51,6 +76,8 @@
 //	Includes
 //==================================================================================================
 
+#include "BGMThreadSafetyAnalysis.h"
+
 //	System Includes
 #if !defined(__COREAUDIO_USE_FLAT_INCLUDES__)
 	#include <CoreAudio/CoreAudioTypes.h>
@@ -70,7 +97,7 @@
 //	A recursive mutex.
 //==================================================================================================
 
-class	CAMutex
+class CAPABILITY("mutex") CAMutex
 {
 //	Construction/Destruction
 public:
@@ -79,9 +106,9 @@ public:
 
 //	Actions
 public:
-	virtual bool	Lock();
-	virtual void	Unlock();
-	virtual bool	Try(bool& outWasLocked);	// returns true if lock is free, false if not
+	virtual bool	Lock() ACQUIRE();
+	virtual void	Unlock() RELEASE();
+	virtual bool	Try(bool& outWasLocked) TRY_ACQUIRE(true);	// returns true if the lock was free, false if not
 	
 	virtual bool	IsFree() const;
 	virtual bool	IsOwnedByCurrentThread() const;
@@ -99,16 +126,16 @@ protected:
 
 //	Helper class to manage taking and releasing recursively
 public:
-	class			Locker
+	class SCOPED_CAPABILITY Locker
 	{
 	
 	//	Construction/Destruction
 	public:
-					Locker(CAMutex& inMutex) : mMutex(&inMutex), mNeedsRelease(false) { mNeedsRelease = mMutex->Lock(); }
-					Locker(const CAMutex& inMutex) : mMutex(const_cast<CAMutex*>(&inMutex)), mNeedsRelease(false) { mNeedsRelease = mMutex->Lock(); }
-					Locker(CAMutex* inMutex) : mMutex(inMutex), mNeedsRelease(false) { mNeedsRelease = (mMutex != NULL && mMutex->Lock()); }
+					Locker(CAMutex& inMutex) ACQUIRE(inMutex) : mMutex(&inMutex), mNeedsRelease(false) { mNeedsRelease = mMutex->Lock(); }
+					Locker(const CAMutex& inMutex) ACQUIRE(inMutex) : mMutex(const_cast<CAMutex*>(&inMutex)), mNeedsRelease(false) { mNeedsRelease = mMutex->Lock(); }
+					Locker(CAMutex* inMutex) ACQUIRE(inMutex) : mMutex(inMutex), mNeedsRelease(false) { mNeedsRelease = (mMutex != NULL && mMutex->Lock()); }
 						// in this case the mutex can be null
-					~Locker() { if(mNeedsRelease) { mMutex->Unlock(); } }
+					~Locker() RELEASE() { if(mNeedsRelease) { mMutex->Unlock(); } }
 	
 	
 	private:
@@ -122,6 +149,8 @@ public:
 	
 	};
 
+	// Clang's static analysis doesn't work for unlocker classes. See
+	// <https://clang.llvm.org/docs/ThreadSafetyAnalysis.html#no-alias-analysis>.
 // Unlocker
 	class Unlocker
 	{
@@ -139,6 +168,7 @@ public:
 	};
 	
 // you can use this with Try - if you take the lock in try, pass in the outWasLocked var
+    // Also unannotated because Clang's thread safety analysis doesn't support it.
 	class Tryer {
 	
 	//	Construction/Destruction

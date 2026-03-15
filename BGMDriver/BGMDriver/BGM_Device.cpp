@@ -656,7 +656,10 @@ void	BGM_Device::Device_GetPropertyData(AudioObjectID inObjectID, pid_t inClient
 		case kAudioDevicePropertyDeviceIsRunning:
 			//	This property returns whether or not IO is running for the device.
             ThrowIf(inDataSize < sizeof(UInt32), CAException(kAudioHardwareBadPropertySizeError), "BGM_Device::Device_GetPropertyData: not enough space for the return value of kAudioDevicePropertyDeviceIsRunning for the device");
-            *reinterpret_cast<UInt32*>(outData) = mClients.ClientsRunningIO() ? 1 : 0;
+            {
+                CAMutex::Locker theStateLocker(mStateMutex);
+                *reinterpret_cast<UInt32*>(outData) = mStartCount > 0 ? 1 : 0;
+            }
             outDataSize = sizeof(UInt32);
 			break;
 
@@ -1254,20 +1257,21 @@ void	BGM_Device::StartIO(UInt32 inClientID)
         //   - BGMApp starts the hardware and, after the hardware is ready, replies to BGMDriver's message.
         //   - BGMDriver lets the host know that it's ready to do IO by returning from StartIO.
         
-        // Update our client data.
-        //
-        // We add the work to the task queue, rather than doing it here, because BeginIOOperation and EndIOOperation
-        // also add this task to the queue and the updates should be done in order.
-        bool didStartIO = mTaskQueue.QueueSync_StartClientIO(&mClients, inClientID);
-        
-        // We only tell the hardware to start if this is the first time IO has been started.
-        if(didStartIO)
+        // Reference-count IO starts so _HW_StartIO is called only when the first client starts IO.
+    	//
+        // The HAL currently only calls StartIO for the first client, but we don't want to assume that will always be
+        // the case. (And Apple's sample code does it this way.)
+        ThrowIf(mStartCount == UINT64_MAX,
+                CAException(kAudioHardwareIllegalOperationError),
+                "BGM_Device::StartIO: mStartCount overflow");
+        if(mStartCount == 0)
         {
             kern_return_t theError = _HW_StartIO();
             ThrowIfKernelError(theError,
                                CAException(theError),
                                "BGM_Device::StartIO: Failed to start because of an error calling down to the driver.");
         }
+        ++mStartCount;
         
         clientIsBGMApp = mClients.IsBGMApp(inClientID);
         bgmAppHasClientRegistered = mClients.BGMAppHasClientRegistered();
@@ -1315,19 +1319,23 @@ void	BGM_Device::StartIO(UInt32 inClientID)
 
 void	BGM_Device::StopIO(UInt32 inClientID)
 {
+    DebugMsg("BGM_Device::StopIO: inClientID=%u", inClientID);
+
     CAMutex::Locker theStateLocker(mStateMutex);
-    
-    // Update our client data.
-    //
-    // We add the work to the task queue, rather than doing it here, because BeginIOOperation and EndIOOperation also
-    // add this task to the queue and the updates should be done in order.
-    bool didStopIO = mTaskQueue.QueueSync_StopClientIO(&mClients, inClientID);
-	
-	//	we tell the hardware to stop if this is the last stop call
-	if(didStopIO)
-	{
-		_HW_StopIO();
-	}
+
+    ThrowIf(mStartCount == 0,
+            CAException(kAudioHardwareIllegalOperationError),
+            "BGM_Device::StopIO: mStartCount underflow");
+    if(mStartCount == 1)
+    {
+        _HW_StopIO();
+        mStartCount = 0;
+        mClients.StopIO();
+    }
+    else if(mStartCount > 1)
+    {
+        --mStartCount;
+    }
 }
 
 void	BGM_Device::GetZeroTimeStamp(Float64& outSampleTime, UInt64& outHostTime, UInt64& outSeed)
@@ -1373,7 +1381,6 @@ void	BGM_Device::WillDoIOOperation(UInt32 inOperationID, bool& outWillDo, bool& 
 {
 	switch(inOperationID)
 	{
-        case kAudioServerPlugInIOOperationThread:
         case kAudioServerPlugInIOOperationReadInput:
         case kAudioServerPlugInIOOperationProcessOutput:
 		case kAudioServerPlugInIOOperationWriteMix:
@@ -1386,6 +1393,7 @@ void	BGM_Device::WillDoIOOperation(UInt32 inOperationID, bool& outWillDo, bool& 
             outWillDoInPlace = true;
             break;
 
+        case kAudioServerPlugInIOOperationThread:
 		case kAudioServerPlugInIOOperationCycle:
         case kAudioServerPlugInIOOperationConvertInput:
         case kAudioServerPlugInIOOperationProcessInput:
@@ -1401,23 +1409,12 @@ void	BGM_Device::WillDoIOOperation(UInt32 inOperationID, bool& outWillDo, bool& 
 
 void	BGM_Device::BeginIOOperation(UInt32 inOperationID, UInt32 inIOBufferFrameSize, const AudioServerPlugInIOCycleInfo& inIOCycleInfo, UInt32 inClientID)
 {
-	#pragma unused(inIOBufferFrameSize, inIOCycleInfo)
-    
-    if(inOperationID == kAudioServerPlugInIOOperationThread)
-    {
-        // Update this client's IO state and send notifications if that changes the value of
-        // kAudioDeviceCustomPropertyDeviceIsRunning or
-        // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp. We have to do this here
-        // as well as in StartIO because the HAL only calls StartIO/StopIO with the first/last clients.
-        //
-        // We perform the update async because it isn't real-time safe, but we can't just dispatch it with
-        // dispatch_async because that isn't real-time safe either. (Apparently even constructing a block
-        // isn't.)
-        //
-        // We don't have to hold the IO mutex here because mTaskQueue and mClients don't change and
-        // adding a task to mTaskQueue is thread safe.
-        mTaskQueue.QueueAsync_StartClientIO(&mClients, inClientID);
-    }
+	#pragma unused(inOperationID, inIOBufferFrameSize, inIOCycleInfo, inClientID)
+	// We used to track per-client IO here using kAudioServerPlugInIOOperationThread, but the HAL doesn't do that
+	// operation for each client any more on recent macOS. We also can't use kAudioServerPlugInIOOperationCycle because
+	// it's not reliable (not sure why).
+	//
+	// See mInactivityTimer and kAudioServerPlugInIOOperationProcessOutput for the workaround.
 }
 
 void	BGM_Device::DoIOOperation(AudioObjectID inStreamObjectID, UInt32 inClientID, UInt32 inOperationID, UInt32 inIOBufferFrameSize, const AudioServerPlugInIOCycleInfo& inIOCycleInfo, void* ioMainBuffer, void* ioSecondaryBuffer)
@@ -1448,14 +1445,20 @@ void	BGM_Device::DoIOOperation(AudioObjectID inStreamObjectID, UInt32 inClientID
         case kAudioServerPlugInIOOperationProcessOutput:
             {
                 bool theClientIsMusicPlayer = mClients.IsMusicPlayerRT(inClientID);
-                
                 CAMutex::Locker theIOLocker(mIOMutex);
+
                 // Called in this IO operation so we can get the music player client's data separately
 				mAudibleState.UpdateWithClientIO(theClientIsMusicPlayer,
 												 inIOBufferFrameSize,
 												 inIOCycleInfo.mOutputTime.mSampleTime,
 												 reinterpret_cast<const Float32*>(ioMainBuffer));
             }
+
+            // Record that a non-BGMApp client is actively doing IO by updating the timestamp.
+			// TODO: We probably don't need to call this for kAudioServerPlugInIOOperationProcessOutput (every client).
+			//       kAudioServerPlugInIOOperationProcessMix would be more efficient.
+            mClients.RecordNonBGMAppIO(inClientID);
+
             ApplyClientRelativeVolume(inClientID, inIOBufferFrameSize, ioMainBuffer);
             break;
 
@@ -1509,16 +1512,7 @@ void	BGM_Device::DoIOOperation(AudioObjectID inStreamObjectID, UInt32 inClientID
 
 void	BGM_Device::EndIOOperation(UInt32 inOperationID, UInt32 inIOBufferFrameSize, const AudioServerPlugInIOCycleInfo& inIOCycleInfo, UInt32 inClientID)
 {
-    #pragma unused(inIOBufferFrameSize, inIOCycleInfo)
-
-    if(inOperationID == kAudioServerPlugInIOOperationThread)
-    {
-        // Tell BGM_Clients that this client has stopped IO. Queued async because we have to be real-time safe here.
-        //
-        // We don't have to hold the IO mutex here because mTaskQueue and mClients don't change and adding a task to
-        // mTaskQueue is thread safe.
-        mTaskQueue.QueueAsync_StopClientIO(&mClients, inClientID);
-    }
+    #pragma unused(inOperationID, inIOBufferFrameSize, inIOCycleInfo, inClientID)
 }
 
 void	BGM_Device::ReadInputData(UInt32 inIOBufferFrameSize, Float64 inSampleTime, void* outBuffer)
@@ -1885,7 +1879,29 @@ kern_return_t	BGM_Device::_HW_StartIO()
 	// at a time).
 	BGMAssert(mIOMutex.IsFree(), "BGM_Device::_HW_StartIO: IO mutex taken before starting IO");
     mAudibleState.Reset();
-    
+
+    // Start a periodic timer (500 ms interval) to send notifications for
+    // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp when it changes.
+    BGMAssert(mInactivityTimer == nullptr, "BGM_Device::_HW_StartIO: Inactivity timer already running");
+	dispatch_queue_t theTimerQueue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
+	dispatch_source_t __nonnull theTimer =
+		dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, theTimerQueue);
+	dispatch_source_set_timer(theTimer,
+							  dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC),
+							  500 * NSEC_PER_MSEC,
+							  100 * NSEC_PER_MSEC);
+	dispatch_source_set_event_handler(theTimer, ^{
+		BGMLogAndSwallowExceptions("BGM_Device::_HW_StartIO mInactivityTimer", ([&] {
+			CAMutex::Locker theStateLocker(mStateMutex);
+			if(mInactivityTimer == theTimer && mStartCount > 0)
+			{
+				mClients.SendIORunningPropertyNotification();
+			}
+		}));
+	});
+	dispatch_resume(theTimer);
+	mInactivityTimer = theTimer;
+
     return KERN_SUCCESS;
 }
 
@@ -1893,6 +1909,13 @@ void	BGM_Device::_HW_StopIO()
 {
     if(mWrappedAudioEngine != NULL)
     {
+    }
+
+    if(mInactivityTimer != nullptr)
+    {
+        dispatch_source_cancel(BGM_Utils::NN(mInactivityTimer));
+        dispatch_release(BGM_Utils::NN(mInactivityTimer));
+        mInactivityTimer = nullptr;
     }
 }
 

@@ -45,7 +45,6 @@ void    BGM_Client::Copy(const BGM_Client& inClient)
     mProcessID = inClient.mProcessID;
     mBundleID = inClient.mBundleID;
     mIsNativeEndian = inClient.mIsNativeEndian;
-    mDoingIO = inClient.mDoingIO;
     mIsMusicPlayer = inClient.mIsMusicPlayer;
     mRelativeVolume = inClient.mRelativeVolume;
     mPanPosition = inClient.mPanPosition;

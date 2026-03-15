@@ -17,7 +17,7 @@
 //  BGM_Device.h
 //  BGMDriver
 //
-//  Copyright © 2016, 2017, 2019 Kyle Neideck
+//  Copyright © 2016, 2017, 2019, 2026 Kyle Neideck
 //  Copyright © 2019 Gordon Childs
 //  Copyright (C) 2013 Apple Inc. All Rights Reserved.
 //
@@ -40,14 +40,15 @@
 #include "BGM_Stream.h"
 #include "BGM_VolumeControl.h"
 #include "BGM_MuteControl.h"
+#include "BGMThreadSafetyAnalysis.h"
 
 // PublicUtility Includes
 #include "CAMutex.h"
-#include "CAVolumeCurve.h"
 #include "CARingBuffer.h"
 
 // System Includes
 #include <CoreFoundation/CoreFoundation.h>
+#include <dispatch/dispatch.h>
 #include <pthread.h>
 
 
@@ -180,8 +181,8 @@ private:
 private:
 	void						_HW_Open();
 	void						_HW_Close();
-	kern_return_t				_HW_StartIO();
-	void						_HW_StopIO();
+	kern_return_t				_HW_StartIO() REQUIRES(mStateMutex);
+	void						_HW_StopIO() REQUIRES(mStateMutex);
 	Float64						_HW_GetSampleRate() const;
 	kern_return_t				_HW_SetSampleRate(Float64 inNewSampleRate);
 	UInt32						_HW_GetRingBufferFrameSize() const;
@@ -204,7 +205,9 @@ private:
     static pthread_once_t		sStaticInitializer;
     static BGM_Device* __nonnull    sInstance;
     static BGM_Device* __nonnull    sUISoundsInstance;
-    
+
+	// TODO: On macOS Tahoe, the device name is shown when you change the system volume. See if we're able to change
+	//       BGMDevice's name to include the name of the real device, e.g. "MacBook Pro Speakers (Background Music)".
     #define kDeviceName                 "Background Music"
     #define kDeviceName_UISounds        "Background Music (UI Sounds)"
     #define kDeviceManufacturerName     "Background Music contributors"
@@ -225,6 +228,10 @@ private:
 
     CAMutex                     mStateMutex;
     CAMutex						mIOMutex;
+
+    // Reference count of active IO clients. Used to gate _HW_StartIO/_HW_StopIO and to answer
+    // kAudioDevicePropertyDeviceIsRunning.
+    UInt64                      mStartCount GUARDED_BY(mStateMutex) = 0;
     
     const Float64               kSampleRateDefault = 44100.0;
     // Before we can change sample rate, the host has to stop the device. The new sample rate is
@@ -263,6 +270,11 @@ private:
 	BGM_MuteControl				mMuteControl;
     bool                        mPendingOutputVolumeControlEnabled = true;
     bool                        mPendingOutputMuteControlEnabled   = true;
+
+    // This timer fires every 500 ms while IO is running. It's used to update the
+    // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp property when non-BGMApp clients stop doing IO.
+    // TODO: Split BGMDevice into an input and an output device so this isn't needed.
+    dispatch_source_t __nullable mInactivityTimer GUARDED_BY(mStateMutex) { nullptr };
 
 };
 

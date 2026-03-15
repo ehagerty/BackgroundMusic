@@ -191,12 +191,6 @@ private:
     //     2. mBufferInputMutex
     //     3. mBufferOutputMutex
     //
-    // The ACQUIRED_BEFORE annotations don't do anything yet. From clang's docs: "ACQUIRED_BEFORE(…)
-    // and ACQUIRED_AFTER(…) are currently unimplemented. To be fixed in a future update." After
-    // they've fixed that, the compiler will enforce the ordering statically.
-    //
-    // TODO: We can't use std::shared_lock because we're still on C++11, but we could use std::lock
-    //       to help ensure the locks are always taken in the right order.
     // TODO: It would be better to have a separate class for the buffer and its mutexes.
     CAMutex             mStateMutex ACQUIRED_BEFORE(mBufferInputMutex)
                             ACQUIRED_BEFORE(mBufferOutputMutex) { "Playthrough state" };

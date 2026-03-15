@@ -17,7 +17,7 @@
 
 //
 //  BGMThreadSafetyAnalysis.h
-//  PublicUtility
+//  SharedSource
 //
 //  © Copyright 2007-2020, The Clang Team
 //  Copyright © 2020 Kyle Neideck
@@ -27,8 +27,10 @@
 //
 
 
-#ifndef PublicUtility__BGMThreadSafetyAnalysis
-#define PublicUtility__BGMThreadSafetyAnalysis
+// TODO: Add -Wthread-safety-pointer to the "other warning flags" build setting when Xcode gets up to Clang 21.
+
+#ifndef SharedSource__BGMThreadSafetyAnalysis
+#define SharedSource__BGMThreadSafetyAnalysis
 
 // Enable thread safety attributes only with clang.
 // The attributes can be safely erased when compiling with other compilers.
@@ -95,7 +97,7 @@
 #define NO_THREAD_SAFETY_ANALYSIS \
   THREAD_ANNOTATION_ATTRIBUTE__(no_thread_safety_analysis)
 
-#endif /* PublicUtility__BGMThreadSafetyAnalysis */
+#endif /* SharedSource__BGMThreadSafetyAnalysis */
 
 /*
 This file is derived from "mutex.h" from the Clang documentation at

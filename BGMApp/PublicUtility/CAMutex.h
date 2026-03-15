@@ -18,7 +18,7 @@
 //  PublicUtility
 //
 //  Copyright (C) 2014 Apple Inc. All Rights Reserved.
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 //  Original license header follows.
 //
@@ -108,7 +108,7 @@ public:
 public:
 	virtual bool	Lock() ACQUIRE();
 	virtual void	Unlock() RELEASE();
-	virtual bool	Try(bool& outWasLocked) TRY_ACQUIRE(true);	// returns true if lock is free, false if not
+	virtual bool	Try(bool& outWasLocked) TRY_ACQUIRE(true);	// returns true if the lock was free, false if not
 	
 	virtual bool	IsFree() const;
 	virtual bool	IsOwnedByCurrentThread() const;
@@ -167,12 +167,13 @@ public:
 	};
 	
 // you can use this with Try - if you take the lock in try, pass in the outWasLocked var
-	class SCOPED_CAPABILITY Tryer {
+    // Also unannotated because Clang's thread safety analysis doesn't support it.
+	class Tryer {
 	
 	//	Construction/Destruction
 	public:
-		Tryer (CAMutex &mutex) TRY_ACQUIRE(true, mutex) : mMutex(mutex), mNeedsRelease(false), mHasLock(false) { mHasLock = mMutex.Try (mNeedsRelease); }
-		~Tryer () RELEASE() { if (mNeedsRelease) mMutex.Unlock(); }
+		Tryer (CAMutex &mutex) : mMutex(mutex), mNeedsRelease(false), mHasLock(false) { mHasLock = mMutex.Try (mNeedsRelease); }
+		~Tryer () { if (mNeedsRelease) mMutex.Unlock(); }
 		
 		bool HasLock () const { return mHasLock; }
 

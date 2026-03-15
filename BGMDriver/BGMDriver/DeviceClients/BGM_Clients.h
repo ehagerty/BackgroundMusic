@@ -17,7 +17,7 @@
 //  BGM_Clients.h
 //  BGMDriver
 //
-//  Copyright © 2016 Kyle Neideck
+//  Copyright © 2016, 2026 Kyle Neideck
 //
 
 #ifndef __BGMDriver__BGM_Clients__
@@ -33,10 +33,11 @@
 #include "CACFArray.h"
 
 // System Includes
+#include <atomic>
 #include <CoreAudio/AudioServerPlugIn.h>
 
 
-// Forward Declations
+// Forward Declarations
 class BGM_ClientTasks;
 
 
@@ -66,23 +67,35 @@ public:
     
     void                                AddClient(BGM_Client inClient);
     void                                RemoveClient(const UInt32 inClientID);
-    
-private:
-    // Only BGM_TaskQueue is allowed to call these (through the BGM_ClientTasks interface). We get notifications
-    // from the HAL when clients start/stop IO and they have to be processed in the order we receive them to
-    // avoid race conditions. If these methods could be called directly those calls would skip any queued calls.
-    bool                                StartIONonRT(UInt32 inClientID);
-    bool                                StopIONonRT(UInt32 inClientID);
 
-public:
-    bool                                ClientsRunningIO() const;
-    bool                                ClientsOtherThanBGMAppRunningIO() const;
-    
-private:
-    void                                SendIORunningNotifications(bool sendIsRunningNotification, bool sendIsRunningSomewhereOtherThanBGMAppNotification) const;
-public:
-    bool                                IsBGMApp(UInt32 inClientID) const { return inClientID == mBGMAppClientID; }
-    bool                                BGMAppHasClientRegistered() const { return mBGMAppClientID != -1; }
+    bool                                IsBGMApp(const UInt32 inClientID) const noexcept { return static_cast<SInt64>(inClientID) == mBGMAppClientID.load(std::memory_order_relaxed); }
+    bool                                BGMAppHasClientRegistered() const noexcept { return mBGMAppClientID.load(std::memory_order_relaxed) != -1; }
+
+    // Returns true if a client other than BGMApp has done IO in the last 2 seconds (and the device
+    // is running - see StopIO).
+    bool                                ClientsOtherThanBGMAppRunningIO() const noexcept;
+    // If inClientID isn't BGMApp, records that a non-BGMApp client is doing IO.
+    //
+    // We only update a timestamp here rather than sending property change notifications so this
+    // function can be real-time safe. The notifications are handled separately by
+    // SendIORunningPropertyNotification and StopIO.
+    //
+    // Real-time safe.
+    void                                RecordNonBGMAppIO(UInt32 inClientID) noexcept;
+    // Sends a notification for kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp if
+    // its value has changed since the last time we sent a notification for it. Assumes that value
+    // comes from ClientsOtherThanBGMAppRunningIO.
+    //
+    // Not real-time safe.
+    void                                SendIORunningPropertyNotification();
+    // Immediately marks non-BGMApp clients as not doing IO and sends a notification for the
+    // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp if that changed its value.
+    // Assumes that value comes from ClientsOtherThanBGMAppRunningIO.
+    //
+    // Call this when the device stops IO.
+    //
+    // Not real-time safe.
+    void                                StopIO();
     
     inline pid_t                        GetMusicPlayerProcessIDProperty() const { return mMusicPlayerProcessIDProperty; }
     inline CFStringRef                  CopyMusicPlayerBundleIDProperty() const { return mMusicPlayerBundleIDProperty.CopyCFString(); }
@@ -111,21 +124,28 @@ public:
     bool                                SetClientsRelativeVolumes(const CACFArray inAppVolumes);
     
 private:
-    AudioObjectID                       mOwnerDeviceID;
+    const AudioObjectID                 mOwnerDeviceID;
     BGM_ClientMap                       mClientMap;
-    
-    // Counters for the number of clients that are doing IO. These are used to tell whether any clients
-    // are currently doing IO without having to check every client's mDoingIO.
+
+    CAMutex                             mMutex { "Clients" };
+
+    // todo either move mStartCount and mInactivityTimer here from BGM_Device, or delete this comment
+    // Counter for the number of clients that are doing IO.
     //
     // We need to reference count this rather than just using a bool because the HAL might (but usually
     // doesn't) call our StartIO/StopIO functions for clients other than the first to start and last to
     // stop.
-    UInt64                              mStartCount = 0;
-    UInt64                              mStartCountExcludingBGMApp = 0;
-    
-    CAMutex                             mMutex { "Clients" };
-    
-    SInt64                              mBGMAppClientID = -1;
+    // UInt64                              mStartCount GUARDED_BY(mMutex) = 0;
+
+    // Atomic so they can be accessed on both real-time and non-RT threads.
+
+    // BGMApp's client ID, or -1 if BGMApp doesn't have a client registered
+    std::atomic<SInt64>                 mBGMAppClientID { -1 };
+    // Host timestamp at the most-recent time a client other than BGMApp did IO.
+    std::atomic<uint64_t>               mLastNonBGMAppIOTime { 0 };
+    // The value kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp had when we last
+    // sent a property change notification for it.
+    std::atomic<bool>                   mLastNotifiedIsRunning { false };
     
     // The value of the kAudioDeviceCustomPropertyMusicPlayerProcessID property, or 0 if it's unset/null.
     // We store this separately because the music player might not always be a client, but could be added

@@ -140,12 +140,6 @@ public:
     // inAppBundleID may contain a null CFStringRef, in which case it returns false.
     bool                                                SetClientsPanPosition(CACFString inAppBundleID, SInt32 inPanPosition);
     
-    void                                                StartIONonRT(UInt32 inClientID) { UpdateClientIOStateNonRT(inClientID, true); }
-    void                                                StopIONonRT(UInt32 inClientID) { UpdateClientIOStateNonRT(inClientID, false); }
-    
-private:
-    void                                                UpdateClientIOStateNonRT(UInt32 inClientID, bool inDoingIO);
-    
     // Has a real-time thread call SwapInShadowMapsRT. (Synchronously queues the call as a task on mTaskQueue.)
     // The shadow maps mutex must be locked when calling this method.
     void                                                SwapInShadowMaps();

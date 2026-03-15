@@ -66,8 +66,6 @@ private:
         kBGMTaskSwapClientShadowMaps,
         
         // Non-realtime thread only
-        kBGMTaskStartClientIO,
-        kBGMTaskStopClientIO,
         kBGMTaskSendPropertyNotification
     };
     
@@ -119,18 +117,8 @@ public:
     // Sends a property changed notification to the BGMDevice host. Assumes the scope and element are kAudioObjectPropertyScopeGlobal and
     // kAudioObjectPropertyElementMaster because currently those are the only ones we use.
     void                                QueueAsync_SendPropertyNotification(AudioObjectPropertySelector inProperty, AudioObjectID inDeviceID);
-    
-    // Set/unset a client's is-doing-IO flag
-    
-    inline bool                         QueueSync_StartClientIO(BGM_Clients* inClients, UInt32 inClientID) { return Queue_UpdateClientIOState(true, inClients, inClientID, true); }
-    inline bool                         QueueSync_StopClientIO(BGM_Clients* inClients, UInt32 inClientID) { return Queue_UpdateClientIOState(true, inClients, inClientID, false); }
-    
-    inline void                         QueueAsync_StartClientIO(BGM_Clients* inClients, UInt32 inClientID) { Queue_UpdateClientIOState(false, inClients, inClientID, true); }
-    inline void                         QueueAsync_StopClientIO(BGM_Clients* inClients, UInt32 inClientID) { Queue_UpdateClientIOState(false, inClients, inClientID, false); }
-    
+
 private:
-    bool                                Queue_UpdateClientIOState(bool inSync, BGM_Clients* inClients, UInt32 inClientID, bool inDoingIO);
-    
     UInt64                              QueueSync(BGM_TaskID inTaskID, bool inRunOnRealtimeThread, UInt64 inTaskArg1 = 0, UInt64 inTaskArg2 = 0);
     
     void                                QueueOnNonRealtimeThread(BGM_Task inTask);

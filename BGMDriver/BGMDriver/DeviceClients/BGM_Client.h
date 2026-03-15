@@ -60,11 +60,6 @@ public:
     Boolean                       mIsNativeEndian = true;
     CACFString                    mBundleID;
     
-    // Becomes true when the client triggers the plugin host to call StartIO or to begin
-    // kAudioServerPlugInIOOperationThread, and false again on StopIO or when
-    // kAudioServerPlugInIOOperationThread ends
-    bool                          mDoingIO = false;
-    
     // True if BGMApp has set this client as belonging to the music player app
     bool                          mIsMusicPlayer = false;
     
