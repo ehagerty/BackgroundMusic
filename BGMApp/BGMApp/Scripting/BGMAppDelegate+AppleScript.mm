@@ -17,7 +17,7 @@
 //  BGMAppDelegate+AppleScript.mm
 //  BGMApp
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //  Copyright © 2021 Marcus Wu
 //
 
@@ -87,12 +87,12 @@ const AudioObjectPropertyScope kScope                   = kAudioDevicePropertySc
 
 - (double) mainVolume {
     BGMAudioDevice bgmDevice = [self.audioDevices bgmDevice];
-    return bgmDevice.GetVolumeControlScalarValue(kScope, kMasterChannel);
+    return bgmDevice.GetVolumeControlScalarValue(kScope, kMainChannel);
 }
 
 - (void) setMainVolume:(double)mainVolume {
     BGMAudioDevice bgmDevice = [self.audioDevices bgmDevice];
-    bgmDevice.SetMasterVolumeScalar(kScope, (Float32)mainVolume);
+    bgmDevice.SetMainVolumeScalar(kScope, (Float32)mainVolume);
     [self.outputVolumeSlider setFloatValue:(float)mainVolume];
 }
 

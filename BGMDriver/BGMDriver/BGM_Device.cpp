@@ -82,8 +82,8 @@ void	BGM_Device::StaticInitializer()
 								   CFSTR(kBGMDeviceModelUID),
                                    kObjectID_Stream_Input,
                                    kObjectID_Stream_Output,
-								   kObjectID_Volume_Output_Master,
-								   kObjectID_Mute_Output_Master);
+								   kObjectID_Volume_Output_Main,
+								   kObjectID_Mute_Output_Main);
         sInstance->Activate();
 
         // The instance for system (UI) sounds.
@@ -93,7 +93,7 @@ void	BGM_Device::StaticInitializer()
 										   CFSTR(kBGMDeviceModelUID_UISounds),
                                            kObjectID_Stream_Input_UI_Sounds,
                                            kObjectID_Stream_Output_UI_Sounds,
-                                           kObjectID_Volume_Output_Master_UI_Sounds,
+                                           kObjectID_Volume_Output_Main_UI_Sounds,
                                            kAudioObjectUnknown);  // No mute control.
 
         // Set up the UI sounds device's volume control.

@@ -17,7 +17,7 @@
 //  BGMSystemSoundsVolume.mm
 //  BGMApp
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -58,7 +58,7 @@ NSString* const kMenuItemToolTip =
         try {
             volumeSlider.floatValue =
                 uiSoundsDevice.GetVolumeControlScalarValue(kAudioObjectPropertyScopeOutput,
-                                                           kMasterChannel);
+                                                           kMainChannel);
         } catch (const CAException& e) {
             BGMLogException(e);
             volumeSlider.floatValue = 1.0f;  // Full volume
@@ -81,7 +81,7 @@ NSString* const kMenuItemToolTip =
 
     BGMLogAndSwallowExceptions("BGMSystemSoundsVolume::systemSoundsSliderChanged", ([&] {
         uiSoundsDevice.SetVolumeControlScalarValue(kAudioObjectPropertyScopeOutput,
-                                                   kMasterChannel,
+                                                   kMainChannel,
                                                    sliderLevel);
     }));
 }

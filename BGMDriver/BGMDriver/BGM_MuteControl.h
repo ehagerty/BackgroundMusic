@@ -17,7 +17,7 @@
 //  BGM_MuteControl.h
 //  BGMDriver
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 
 #ifndef BGMDriver__BGM_MuteControl
@@ -49,7 +49,7 @@ public:
                                               AudioObjectPropertyScope inScope =
                                                       kAudioObjectPropertyScopeOutput,
                                               AudioObjectPropertyElement inElement =
-                                                      kAudioObjectPropertyElementMaster);
+                                                      kAudioObjectPropertyElementMain);
 
 #pragma mark Property Operations
 

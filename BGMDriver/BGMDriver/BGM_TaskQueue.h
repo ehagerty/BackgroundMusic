@@ -17,7 +17,7 @@
 //  BGM_TaskQueue.h
 //  BGMDriver
 //
-//  Copyright © 2016 Kyle Neideck
+//  Copyright © 2016, 2026 Kyle Neideck
 //
 
 #ifndef __BGMDriver__BGM_TaskQueue__
@@ -115,7 +115,7 @@ public:
     void                                QueueSync_SwapClientShadowMaps(BGM_ClientMap* inClientMap);
     
     // Sends a property changed notification to the BGMDevice host. Assumes the scope and element are kAudioObjectPropertyScopeGlobal and
-    // kAudioObjectPropertyElementMaster because currently those are the only ones we use.
+    // kAudioObjectPropertyElementMain because currently those are the only ones we use.
     void                                QueueAsync_SendPropertyNotification(AudioObjectPropertySelector inProperty, AudioObjectID inDeviceID);
 
 private:

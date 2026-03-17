@@ -1,3 +1,28 @@
+// This file is part of Background Music.
+//
+// Background Music is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation, either version 2 of the
+// License, or (at your option) any later version.
+//
+// Background Music is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Background Music. If not, see <http://www.gnu.org/licenses/>.
+
+//
+//  CAPropertyAddress.h
+//  PublicUtility
+//
+//  Copyright (C) 2014 Apple Inc. All Rights Reserved.
+//  Copyright © 2026 Kyle Neideck
+//
+//  Original license header follows.
+//
+
 /*
      File: CAPropertyAddress.h
  Abstract: Part of CoreAudio Utility Classes
@@ -80,9 +105,9 @@ struct CAPropertyAddress
 
 //	Construction/Destruction
 public:
-						CAPropertyAddress()																													: AudioObjectPropertyAddress() { mSelector = 0; mScope = kAudioObjectPropertyScopeGlobal; mElement = kAudioObjectPropertyElementMaster; }
-						CAPropertyAddress(AudioObjectPropertySelector inSelector)																			: AudioObjectPropertyAddress() { mSelector = inSelector; mScope = kAudioObjectPropertyScopeGlobal; mElement = kAudioObjectPropertyElementMaster; }
-						CAPropertyAddress(AudioObjectPropertySelector inSelector, AudioObjectPropertyScope inScope)											: AudioObjectPropertyAddress() { mSelector = inSelector; mScope = inScope; mElement = kAudioObjectPropertyElementMaster; }
+						CAPropertyAddress()																													: AudioObjectPropertyAddress() { mSelector = 0; mScope = kAudioObjectPropertyScopeGlobal; mElement = kAudioObjectPropertyElementMain; }
+						CAPropertyAddress(AudioObjectPropertySelector inSelector)																			: AudioObjectPropertyAddress() { mSelector = inSelector; mScope = kAudioObjectPropertyScopeGlobal; mElement = kAudioObjectPropertyElementMain; }
+						CAPropertyAddress(AudioObjectPropertySelector inSelector, AudioObjectPropertyScope inScope)											: AudioObjectPropertyAddress() { mSelector = inSelector; mScope = inScope; mElement = kAudioObjectPropertyElementMain; }
 						CAPropertyAddress(AudioObjectPropertySelector inSelector, AudioObjectPropertyScope inScope, AudioObjectPropertyElement inElement)   : AudioObjectPropertyAddress() { mSelector = inSelector; mScope = inScope; mElement = inElement; }
 						CAPropertyAddress(const AudioObjectPropertyAddress& inAddress)																		: AudioObjectPropertyAddress(inAddress){}
 						CAPropertyAddress(const CAPropertyAddress& inAddress)																				: AudioObjectPropertyAddress(inAddress){}

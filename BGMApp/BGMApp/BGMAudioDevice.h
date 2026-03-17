@@ -16,7 +16,7 @@
 //  BGMAudioDevice.h
 //  BGMApp
 //
-//  Copyright © 2017, 2020 Kyle Neideck
+//  Copyright © 2017, 2020, 2026 Kyle Neideck
 //
 //  A HAL audio device. Note that this class's only state is the AudioObjectID of the device.
 //
@@ -80,9 +80,9 @@ public:
 
 #pragma mark Available Controls
 
-    bool               HasSettableMasterVolume(AudioObjectPropertyScope inScope) const;
-    bool               HasSettableVirtualMasterVolume(AudioObjectPropertyScope inScope) const;
-    bool               HasSettableMasterMute(AudioObjectPropertyScope inScope) const;
+    bool               HasSettableMainVolume(AudioObjectPropertyScope inScope) const;
+    bool               HasSettableVirtualMainVolume(AudioObjectPropertyScope inScope) const;
+    bool               HasSettableMainMute(AudioObjectPropertyScope inScope) const;
 
 #pragma mark Control Values Accessors
 
@@ -91,15 +91,15 @@ public:
     void               CopyVolumeFrom(const BGMAudioDevice inDevice,
                                       AudioObjectPropertyScope inScope);
 
-    bool               SetMasterVolumeScalar(AudioObjectPropertyScope inScope, Float32 inVolume);
-    
-    bool               GetVirtualMasterVolumeScalar(AudioObjectPropertyScope inScope,
-                                                    Float32& outVirtualMasterVolume) const;
-    bool               SetVirtualMasterVolumeScalar(AudioObjectPropertyScope inScope,
-                                                    Float32 inVolume);
+    bool               SetMainVolumeScalar(AudioObjectPropertyScope inScope, Float32 inVolume);
 
-    bool               GetVirtualMasterBalance(AudioObjectPropertyScope inScope,
-                                               Float32& outVirtualMasterBalance) const;
+    bool               GetVirtualMainVolumeScalar(AudioObjectPropertyScope inScope,
+                                                  Float32& outVirtualMainVolume) const;
+    bool               SetVirtualMainVolumeScalar(AudioObjectPropertyScope inScope,
+                                                  Float32 inVolume);
+
+    bool               GetVirtualMainBalance(AudioObjectPropertyScope inScope,
+                                             Float32& outVirtualMainBalance) const;
 
 #pragma mark Implementation
 

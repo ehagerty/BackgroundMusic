@@ -17,7 +17,7 @@
 //  BGM_Types.h
 //  SharedSource
 //
-//  Copyright © 2016, 2017, 2019, 2024 Kyle Neideck
+//  Copyright © 2016, 2017, 2019, 2024, 2026 Kyle Neideck
 //
 
 #ifndef SharedSource__BGM_Types
@@ -64,8 +64,8 @@ enum
 	kObjectID_Device                            = 2,   // Belongs to kObjectID_PlugIn
 	kObjectID_Stream_Input                      = 3,   // Belongs to kObjectID_Device
 	kObjectID_Stream_Output                     = 4,   // Belongs to kObjectID_Device
-	kObjectID_Volume_Output_Master              = 5,   // Belongs to kObjectID_Device
-	kObjectID_Mute_Output_Master                = 6,   // Belongs to kObjectID_Device
+	kObjectID_Volume_Output_Main                = 5,   // Belongs to kObjectID_Device
+	kObjectID_Mute_Output_Main                  = 6,   // Belongs to kObjectID_Device
     // Null Device
     kObjectID_Device_Null                       = 7,   // Belongs to kObjectID_PlugIn
     kObjectID_Stream_Null                       = 8,   // Belongs to kObjectID_Device_Null
@@ -73,12 +73,12 @@ enum
     kObjectID_Device_UI_Sounds                  = 9,   // Belongs to kObjectID_PlugIn
     kObjectID_Stream_Input_UI_Sounds            = 10,  // Belongs to kObjectID_Device_UI_Sounds
     kObjectID_Stream_Output_UI_Sounds           = 11,  // Belongs to kObjectID_Device_UI_Sounds
-    kObjectID_Volume_Output_Master_UI_Sounds    = 12,  // Belongs to kObjectID_Device_UI_Sounds
+    kObjectID_Volume_Output_Main_UI_Sounds      = 12,  // Belongs to kObjectID_Device_UI_Sounds
 };
 
 // AudioObjectPropertyElement docs: "Elements are numbered sequentially where 0 represents the
-// master element."
-static const AudioObjectPropertyElement kMasterChannel = kAudioObjectPropertyElementMaster;
+// main element."
+static const AudioObjectPropertyElement kMainChannel = kAudioObjectPropertyElementMain;
 
 #pragma BGM Plug-in Custom Properties
 
@@ -169,9 +169,9 @@ enum BGMDeviceAudibleState : SInt32
 // kAudioDeviceCustomPropertyEnabledOutputControls indices
 enum
 {
-    // True if BGMDevice's master output volume control is enabled.
+    // True if BGMDevice's main output volume control is enabled.
     kBGMEnabledOutputControlsIndex_Volume = 0,
-    // True if BGMDevice's master output mute control is enabled.
+    // True if BGMDevice's main output mute control is enabled.
     kBGMEnabledOutputControlsIndex_Mute   = 1
 };
 
@@ -182,37 +182,37 @@ enum
 static const AudioObjectPropertyAddress kBGMMusicPlayerProcessIDAddress = {
     kAudioDeviceCustomPropertyMusicPlayerProcessID,
     kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 static const AudioObjectPropertyAddress kBGMMusicPlayerBundleIDAddress = {
     kAudioDeviceCustomPropertyMusicPlayerBundleID,
     kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 static const AudioObjectPropertyAddress kBGMAudibleStateAddress = {
     kAudioDeviceCustomPropertyDeviceAudibleState,
     kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 static const AudioObjectPropertyAddress kBGMRunningSomewhereOtherThanBGMAppAddress = {
     kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp,
     kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 static const AudioObjectPropertyAddress kBGMAppVolumesAddress = {
     kAudioDeviceCustomPropertyAppVolumes,
     kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 static const AudioObjectPropertyAddress kBGMEnabledOutputControlsAddress = {
     kAudioDeviceCustomPropertyEnabledOutputControls,
     kAudioObjectPropertyScopeOutput,
-    kAudioObjectPropertyElementMaster
+    kAudioObjectPropertyElementMain
 };
 
 #pragma mark XPC Return Codes

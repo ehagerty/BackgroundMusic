@@ -17,7 +17,7 @@
 //  BGM_PlugInInterface.cpp
 //  BGMDriver
 //
-//  Copyright © 2016, 2017 Kyle Neideck
+//  Copyright © 2016, 2017, 2026 Kyle Neideck
 //  Copyright (C) 2013 Apple Inc. All Rights Reserved.
 //
 //  Based largely on SA_PlugIn.cpp from Apple's SimpleAudioDriver Plug-In sample code.
@@ -109,14 +109,14 @@ static BGM_Object& BGM_LookUpOwnerObject(AudioObjectID inObjectID)
         case kObjectID_Device:
         case kObjectID_Stream_Input:
         case kObjectID_Stream_Output:
-        case kObjectID_Volume_Output_Master:
-        case kObjectID_Mute_Output_Master:
+        case kObjectID_Volume_Output_Main:
+        case kObjectID_Mute_Output_Main:
             return BGM_Device::GetInstance();
 
         case kObjectID_Device_UI_Sounds:
         case kObjectID_Stream_Input_UI_Sounds:
         case kObjectID_Stream_Output_UI_Sounds:
-        case kObjectID_Volume_Output_Master_UI_Sounds:
+        case kObjectID_Volume_Output_Main_UI_Sounds:
             return BGM_Device::GetUISoundsInstance();
 
         case kObjectID_Device_Null:

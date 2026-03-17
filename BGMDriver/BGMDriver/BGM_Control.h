@@ -17,7 +17,7 @@
 //  BGM_Control.h
 //  BGMDriver
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 //  An AudioObject that represents a user-controllable aspect of a device or stream, such as volume
 //  or balance.
@@ -45,7 +45,7 @@ protected:
                                     AudioObjectPropertyScope inScope =
                                             kAudioObjectPropertyScopeOutput,
                                     AudioObjectPropertyElement inElement =
-                                            kAudioObjectPropertyElementMaster);
+                                            kAudioObjectPropertyElementMain);
 
 #pragma mark Property Operations
 

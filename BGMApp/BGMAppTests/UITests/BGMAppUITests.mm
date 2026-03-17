@@ -208,7 +208,7 @@
 
 - (void) testOutputVolumeSlider {
     const AudioObjectPropertyScope scope = kAudioDevicePropertyScopeOutput;
-    const UInt32 channel = kMasterChannel;
+    const UInt32 channel = kMainChannel;
 
     [icon click];
     

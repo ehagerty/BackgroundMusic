@@ -17,7 +17,7 @@
 //  BGM_TaskQueue.cpp
 //  BGMDriver
 //
-//  Copyright © 2016 Kyle Neideck
+//  Copyright © 2016, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -410,7 +410,7 @@ bool    BGM_TaskQueue::ProcessNonRealTimeThreadTask(BGM_Task* inTask)
             DebugMsg("BGM_TaskQueue::ProcessNonRealTimeThreadTask: Processing kBGMTaskSendPropertyNotification");
             {
                 AudioObjectPropertyAddress thePropertyAddress[] = {
-                    { static_cast<UInt32>(inTask->GetArg1()), kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster } };
+                    { static_cast<UInt32>(inTask->GetArg1()), kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain } };
                 BGM_PlugIn::Host_PropertiesChanged(static_cast<AudioObjectID>(inTask->GetArg2()), 1, thePropertyAddress);
             }
             break;

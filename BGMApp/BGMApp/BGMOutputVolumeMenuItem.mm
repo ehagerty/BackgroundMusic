@@ -17,7 +17,7 @@
 //  BGMOutputVolumeMenuItem.mm
 //  BGMApp
 //
-//  Copyright © 2017-2019 Kyle Neideck
+//  Copyright © 2017-2019, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -120,9 +120,9 @@ NSString* const __nonnull      kGenericOutputDeviceName = @"Output Device";
     // give up. (That said, we do check mute last so that, if it did throw, it wouldn't affect the
     // more important calls.)
     BGMLogAndSwallowExceptions("BGMOutputVolumeMenuItem::updateVolumeSlider", ([&] {
-        BOOL hasVolume = bgmDevice.HasSettableMasterVolume(kScope);
+        BOOL hasVolume = bgmDevice.HasSettableMainVolume(kScope);
 
-        // If the device doesn't have a master volume control, we disable the slider and set it to
+        // If the device doesn't have a main volume control, we disable the slider and set it to
         // full (or to zero, if muted).
         volumeSlider.enabled = hasVolume;
 
@@ -130,14 +130,14 @@ NSString* const __nonnull      kGenericOutputDeviceName = @"Output Device";
             // Set the slider to the current output volume. The slider values and volume values are
             // both from 0 to 1, so we can use the volume as is.
             volumeSlider.doubleValue =
-                bgmDevice.GetVolumeControlScalarValue(kScope, kMasterChannel);
+                bgmDevice.GetVolumeControlScalarValue(kScope, kMainChannel);
         } else {
             volumeSlider.doubleValue = 1.0;
         }
 
         // Set the slider to zero if the device is muted.
-        if (bgmDevice.HasSettableMasterMute(kScope) &&
-            bgmDevice.GetMuteControlValue(kScope, kMasterChannel)) {
+        if (bgmDevice.HasSettableMainMute(kScope) &&
+            bgmDevice.GetMuteControlValue(kScope, kMainChannel)) {
             volumeSlider.doubleValue = 0.0;
         }
     }));
@@ -223,17 +223,17 @@ NSString* const __nonnull      kGenericOutputDeviceName = @"Output Device";
                  outputDevice.GetObjectID());
 
         try {
-            if (outputDevice.HasDataSourceControl(kScope, kMasterChannel)) {
+            if (outputDevice.HasDataSourceControl(kScope, kMainChannel)) {
                 DebugMsg("BGMOutputVolumeMenuItem::updateLabelAndToolTip: Getting data source ID");
                 // The device has datasources, so use the current datasource's name like macOS does.
-                UInt32 dataSourceID = outputDevice.GetCurrentDataSourceID(kScope, kMasterChannel);
+                UInt32 dataSourceID = outputDevice.GetCurrentDataSourceID(kScope, kMainChannel);
 
                 DebugMsg("BGMOutputVolumeMenuItem::updateLabelAndToolTip: "
                          "Getting name for data source %u",
                          dataSourceID);
                 deviceLabel.stringValue =
                     (__bridge_transfer NSString*)outputDevice.CopyDataSourceNameForID(
-                        kScope, kMasterChannel, dataSourceID);
+                        kScope, kMainChannel, dataSourceID);
 
                 // So we know not to change the text if setting the tooltip fails.
                 didSetLabel = YES;
@@ -286,14 +286,14 @@ NSString* const __nonnull      kGenericOutputDeviceName = @"Output Device";
     try {
         // The slider values and volume values are both from 0.0f to 1.0f, so we can use the slider
         // value as is.
-        audioDevices.bgmDevice.SetVolumeControlScalarValue(kScope, kMasterChannel, newValue);
+        audioDevices.bgmDevice.SetVolumeControlScalarValue(kScope, kMainChannel, newValue);
 
         // Mute BGMDevice if they set the slider to zero, and unmute it for non-zero. Muting makes
         // sure the audio doesn't play very quietly instead being completely silent. This matches
         // the behaviour of the Volume menu built-in to macOS.
-        if (audioDevices.bgmDevice.HasMuteControl(kScope, kMasterChannel)) {
+        if (audioDevices.bgmDevice.HasMuteControl(kScope, kMainChannel)) {
             audioDevices.bgmDevice.SetMuteControlValue(kScope,
-                                                       kMasterChannel,
+                                                       kMainChannel,
                                                        (newValue < kSliderEpsilon));
         }
     } catch (const CAException& e) {

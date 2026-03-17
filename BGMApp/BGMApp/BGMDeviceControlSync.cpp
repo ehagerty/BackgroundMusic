@@ -17,7 +17,7 @@
 //  BGMDeviceControlSync.cpp
 //  BGMApp
 //
-//  Copyright © 2016, 2017 Kyle Neideck
+//  Copyright © 2016, 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -34,10 +34,10 @@
 #pragma clang assume_nonnull begin
 
 static const AudioObjectPropertyAddress kMutePropertyAddress =
-    { kAudioDevicePropertyMute, kAudioObjectPropertyScopeOutput, kAudioObjectPropertyElementMaster };
+    { kAudioDevicePropertyMute, kAudioObjectPropertyScopeOutput, kAudioObjectPropertyElementMain };
 
 static const AudioObjectPropertyAddress kVolumePropertyAddress =
-    { kAudioDevicePropertyVolumeScalar, kAudioObjectPropertyScopeOutput, kAudioObjectPropertyElementMaster };
+    { kAudioDevicePropertyVolumeScalar, kAudioObjectPropertyScopeOutput, kAudioObjectPropertyElementMain };
 
 #pragma mark Construction/Destruction
 

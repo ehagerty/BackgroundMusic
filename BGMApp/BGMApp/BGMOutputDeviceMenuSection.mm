@@ -17,7 +17,7 @@
 //  BGMOutputDeviceMenuSection.mm
 //  BGMApp
 //
-//  Copyright © 2016-2018 Kyle Neideck
+//  Copyright © 2016-2018, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -203,7 +203,7 @@ static NSInteger const kOutputDeviceMenuItemTag = 5;
     NSMutableArray<NSMenuItem*>* items = [NSMutableArray new];
 
     AudioObjectPropertyScope scope = kAudioObjectPropertyScopeOutput;
-    UInt32 channel = kAudioObjectPropertyElementMaster;
+    UInt32 channel = kAudioObjectPropertyElementMain;
     
     // If the device has data sources, create a menu item for each. Otherwise, create a single menu item
     // for the device. This way the menu items' titles will be, for example, "Internal Speakers" rather

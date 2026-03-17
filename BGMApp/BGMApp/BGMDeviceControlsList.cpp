@@ -17,7 +17,7 @@
 //  BGMDeviceControlsList.cpp
 //  BGMApp
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -186,10 +186,10 @@ bool    BGMDeviceControlsList::MatchControlsListOf(AudioObjectID inDeviceID)
 
     // Check which controls the other device has.
     BGMAudioDevice device(inDeviceID);
-    bool hasMute = device.HasSettableMasterMute(inScope);
+    bool hasMute = device.HasSettableMainMute(inScope);
 
     bool hasVolume =
-        device.HasSettableMasterVolume(inScope) || device.HasSettableVirtualMasterVolume(inScope);
+        device.HasSettableMainVolume(inScope) || device.HasSettableVirtualMainVolume(inScope);
 
     if(!hasVolume)
     {

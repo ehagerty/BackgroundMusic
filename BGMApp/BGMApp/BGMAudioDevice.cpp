@@ -74,40 +74,40 @@ bool    BGMAudioDevice::CanBeOutputDeviceInBGMApp() const
 
 #pragma mark Available Controls
 
-bool    BGMAudioDevice::HasSettableMasterVolume(AudioObjectPropertyScope inScope) const
+bool    BGMAudioDevice::HasSettableMainVolume(AudioObjectPropertyScope inScope) const
 {
-    return HasVolumeControl(inScope, kMasterChannel) &&
-        VolumeControlIsSettable(inScope, kMasterChannel);
+    return HasVolumeControl(inScope, kMainChannel) &&
+        VolumeControlIsSettable(inScope, kMainChannel);
 }
 
-bool    BGMAudioDevice::HasSettableVirtualMasterVolume(AudioObjectPropertyScope inScope) const
+bool    BGMAudioDevice::HasSettableVirtualMainVolume(AudioObjectPropertyScope inScope) const
 {
-    AudioObjectPropertyAddress virtualMasterVolumeAddress = {
+    AudioObjectPropertyAddress virtualMainVolumeAddress = {
         kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         inScope,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
 
     // TODO: Replace these calls deprecated AudioToolbox functions. There are more below.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    Boolean virtualMasterVolumeIsSettable;
+    Boolean virtualMainVolumeIsSettable;
     OSStatus err = AudioHardwareServiceIsPropertySettable(GetObjectID(),
-                                                          &virtualMasterVolumeAddress,
-                                                          &virtualMasterVolumeIsSettable);
-    virtualMasterVolumeIsSettable &= (err == kAudioServicesNoError);
+                                                          &virtualMainVolumeAddress,
+                                                          &virtualMainVolumeIsSettable);
+    virtualMainVolumeIsSettable &= (err == kAudioServicesNoError);
 
-    bool hasVirtualMasterVolume =
-        AudioHardwareServiceHasProperty(GetObjectID(), &virtualMasterVolumeAddress);
+    bool hasVirtualMainVolume =
+        AudioHardwareServiceHasProperty(GetObjectID(), &virtualMainVolumeAddress);
 #pragma clang diagnostic pop
 
-    return hasVirtualMasterVolume && virtualMasterVolumeIsSettable;
+    return hasVirtualMainVolume && virtualMainVolumeIsSettable;
 }
 
-bool    BGMAudioDevice::HasSettableMasterMute(AudioObjectPropertyScope inScope) const
+bool    BGMAudioDevice::HasSettableMainMute(AudioObjectPropertyScope inScope) const
 {
-    return HasMuteControl(inScope, kMasterChannel) &&
-        MuteControlIsSettable(inScope, kMasterChannel);
+    return HasMuteControl(inScope, kMainChannel) &&
+        MuteControlIsSettable(inScope, kMainChannel);
 }
 
 #pragma mark Control Values Accessors
@@ -115,12 +115,12 @@ bool    BGMAudioDevice::HasSettableMasterMute(AudioObjectPropertyScope inScope) 
 void    BGMAudioDevice::CopyMuteFrom(const BGMAudioDevice inDevice,
                                      AudioObjectPropertyScope inScope)
 {
-    // TODO: Support for devices that have per-channel mute controls but no master mute control
-    if(HasSettableMasterMute(inScope) && inDevice.HasMuteControl(inScope, kMasterChannel))
+    // TODO: Support for devices that have per-channel mute controls but no main mute control
+    if(HasSettableMainMute(inScope) && inDevice.HasMuteControl(inScope, kMainChannel))
     {
         SetMuteControlValue(inScope,
-                            kMasterChannel,
-                            inDevice.GetMuteControlValue(inScope, kMasterChannel));
+                            kMainChannel,
+                            inDevice.GetMuteControlValue(inScope, kMainChannel));
     }
 }
 
@@ -131,13 +131,13 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
     bool didGetVolume = false;
     Float32 volume = FLT_MIN;
 
-    if(inDevice.HasVolumeControl(inScope, kMasterChannel))
+    if(inDevice.HasVolumeControl(inScope, kMainChannel))
     {
-        volume = inDevice.GetVolumeControlScalarValue(inScope, kMasterChannel);
+        volume = inDevice.GetVolumeControlScalarValue(inScope, kMainChannel);
         didGetVolume = true;
     }
 
-    // Use the average channel volume of the other device if it has no master volume.
+    // Use the average channel volume of the other device if it has no main volume.
     if(!didGetVolume)
     {
         UInt32 numChannels =
@@ -166,14 +166,14 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
 
         try
         {
-            didSetVolume = SetMasterVolumeScalar(inScope, volume);
+            didSetVolume = SetMainVolumeScalar(inScope, volume);
         }
         catch(CAException e)
         {
             OSStatus err = e.GetError();
             char err4CC[5] = CA4CCToCString(err);
             CFStringRef uid = CopyDeviceUID();
-            LogWarning("BGMAudioDevice::CopyVolumeFrom: CAException '%s' trying to set master "
+            LogWarning("BGMAudioDevice::CopyVolumeFrom: CAException '%s' trying to set main "
                        "volume of %s",
                        err4CC,
                        CFStringGetCStringPtr(uid, kCFStringEncodingUTF8));
@@ -182,18 +182,18 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
 
         if(!didSetVolume)
         {
-            // Couldn't find a master volume control to set, so try to find a virtual one
-            Float32 virtualMasterVolume;
-            bool success = inDevice.GetVirtualMasterVolumeScalar(inScope, virtualMasterVolume);
+            // Couldn't find a main volume control to set, so try to find a virtual one
+            Float32 virtualMainVolume;
+            bool success = inDevice.GetVirtualMainVolumeScalar(inScope, virtualMainVolume);
             if(success)
             {
-                didSetVolume = SetVirtualMasterVolumeScalar(inScope, virtualMasterVolume);
+                didSetVolume = SetVirtualMainVolumeScalar(inScope, virtualMainVolume);
             }
         }
 
         if(!didSetVolume)
         {
-            // Couldn't set a master or virtual master volume, so as a fallback try to set each
+            // Couldn't set a main or virtual main volume, so as a fallback try to set each
             // channel individually.
             UInt32 numChannels = GetTotalNumberChannels(inScope == kAudioObjectPropertyScopeInput);
             for(UInt32 channel = 1; channel <= numChannels; channel++)
@@ -207,99 +207,99 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
     }
 }
 
-bool    BGMAudioDevice::SetMasterVolumeScalar(AudioObjectPropertyScope inScope, Float32 inVolume)
+bool    BGMAudioDevice::SetMainVolumeScalar(AudioObjectPropertyScope inScope, Float32 inVolume)
 {
-    if(HasSettableMasterVolume(inScope))
+    if(HasSettableMainVolume(inScope))
     {
-        SetVolumeControlScalarValue(inScope, kMasterChannel, inVolume);
+        SetVolumeControlScalarValue(inScope, kMainChannel, inVolume);
         return true;
     }
 
     return false;
 }
 
-bool    BGMAudioDevice::GetVirtualMasterVolumeScalar(AudioObjectPropertyScope inScope,
-                                                     Float32& outVirtualMasterVolume) const
+bool    BGMAudioDevice::GetVirtualMainVolumeScalar(AudioObjectPropertyScope inScope,
+                                                   Float32& outVirtualMainVolume) const
 {
-    AudioObjectPropertyAddress virtualMasterVolumeAddress = {
+    AudioObjectPropertyAddress virtualMainVolumeAddress = {
         kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         inScope,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    if(!AudioHardwareServiceHasProperty(GetObjectID(), &virtualMasterVolumeAddress))
+    if(!AudioHardwareServiceHasProperty(GetObjectID(), &virtualMainVolumeAddress))
     {
         return false;
     }
 #pragma clang diagnostic pop
 
-    UInt32 virtualMasterVolumePropertySize = sizeof(Float32);
+    UInt32 virtualMainVolumePropertySize = sizeof(Float32);
     return kAudioServicesNoError == AHSGetPropertyData(GetObjectID(),
-                                                       &virtualMasterVolumeAddress,
-                                                       &virtualMasterVolumePropertySize,
-                                                       &outVirtualMasterVolume);
+                                                       &virtualMainVolumeAddress,
+                                                       &virtualMainVolumePropertySize,
+                                                       &outVirtualMainVolume);
 }
 
-bool    BGMAudioDevice::SetVirtualMasterVolumeScalar(AudioObjectPropertyScope inScope,
-                                                     Float32 inVolume)
+bool    BGMAudioDevice::SetVirtualMainVolumeScalar(AudioObjectPropertyScope inScope,
+                                                   Float32 inVolume)
 {
-    // TODO: For me, setting the virtual master volume sets all the device's channels to the same volume, meaning you can't
+    // TODO: For me, setting the virtual main volume sets all the device's channels to the same volume, meaning you can't
     //       keep any channels quieter than the others. The expected behaviour is to scale the channel volumes
     //       proportionally. So to do this properly I think we'd have to store BGMDevice's previous volume and calculate
     //       each channel's new volume from its current volume and the distance between BGMDevice's old and new volumes.
     //
-    //       The docs kAudioHardwareServiceDeviceProperty_VirtualMasterVolume for say
+    //       The docs kAudioHardwareServiceDeviceProperty_VirtualMainVolume for say
     //           "If the device has individual channel volume controls, this property will apply to those identified by the
     //           device's preferred multi-channel layout (or preferred stereo pair if the device is stereo only). Note that
     //           this control maintains the relative balance between all the channels it affects.
-    //       so I'm not sure why that's not working here. As a workaround we take the to device's (virtual master) balance
+    //       so I'm not sure why that's not working here. As a workaround we take the to device's (virtual main) balance
     //       before changing the volume and set it back after, but of course that'll only work for stereo devices.
 
     bool didSetVolume = false;
 
-    if(HasSettableVirtualMasterVolume(inScope))
+    if(HasSettableVirtualMainVolume(inScope))
     {
-        // Not sure why, but setting the virtual master volume sets all channels to the same volume. As a workaround, we store
+        // Not sure why, but setting the virtual main volume sets all channels to the same volume. As a workaround, we store
         // the current balance here so we can reset it after setting the volume.
-        Float32 virtualMasterBalance;
-        bool didGetVirtualMasterBalance = GetVirtualMasterBalance(inScope, virtualMasterBalance);
+        Float32 virtualMainBalance;
+        bool didGetVirtualMainBalance = GetVirtualMainBalance(inScope, virtualMainBalance);
 
-        AudioObjectPropertyAddress virtualMasterVolumeAddress = {
+        AudioObjectPropertyAddress virtualMainVolumeAddress = {
             kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
             inScope,
-            kAudioObjectPropertyElementMaster
+            kAudioObjectPropertyElementMain
         };
 
         didSetVolume = (kAudioServicesNoError == AHSSetPropertyData(GetObjectID(),
-                                                                    &virtualMasterVolumeAddress,
+                                                                    &virtualMainVolumeAddress,
                                                                     sizeof(Float32),
                                                                     &inVolume));
 
         // Reset the balance
-        AudioObjectPropertyAddress virtualMasterBalanceAddress = {
+        AudioObjectPropertyAddress virtualMainBalanceAddress = {
             kAudioHardwareServiceDeviceProperty_VirtualMainBalance,
             inScope,
-            kAudioObjectPropertyElementMaster
+            kAudioObjectPropertyElementMain
         };
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         if(didSetVolume &&
-           didGetVirtualMasterBalance &&
-           AudioHardwareServiceHasProperty(GetObjectID(), &virtualMasterBalanceAddress))
+           didGetVirtualMainBalance &&
+           AudioHardwareServiceHasProperty(GetObjectID(), &virtualMainBalanceAddress))
         {
             Boolean balanceIsSettable;
             OSStatus err = AudioHardwareServiceIsPropertySettable(GetObjectID(),
-                                                                  &virtualMasterBalanceAddress,
+                                                                  &virtualMainBalanceAddress,
                                                                   &balanceIsSettable);
             if(err == kAudioServicesNoError && balanceIsSettable)
             {
                 AHSSetPropertyData(GetObjectID(),
-                                   &virtualMasterBalanceAddress,
+                                   &virtualMainBalanceAddress,
                                    sizeof(Float32),
-                                   &virtualMasterBalance);
+                                   &virtualMainBalance);
             }
         }
 #pragma clang diagnostic pop
@@ -308,28 +308,28 @@ bool    BGMAudioDevice::SetVirtualMasterVolumeScalar(AudioObjectPropertyScope in
     return didSetVolume;
 }
 
-bool    BGMAudioDevice::GetVirtualMasterBalance(AudioObjectPropertyScope inScope,
-                                                Float32& outVirtualMasterBalance) const
+bool    BGMAudioDevice::GetVirtualMainBalance(AudioObjectPropertyScope inScope,
+                                              Float32& outVirtualMainBalance) const
 {
-    AudioObjectPropertyAddress virtualMasterBalanceAddress = {
+    AudioObjectPropertyAddress virtualMainBalanceAddress = {
         kAudioHardwareServiceDeviceProperty_VirtualMainBalance,
         inScope,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    if(!AudioHardwareServiceHasProperty(GetObjectID(), &virtualMasterBalanceAddress))
+    if(!AudioHardwareServiceHasProperty(GetObjectID(), &virtualMainBalanceAddress))
     {
         return false;
     }
 #pragma clang diagnostic pop
 
-    UInt32 virtualMasterVolumePropertySize = sizeof(Float32);
+    UInt32 virtualMainVolumePropertySize = sizeof(Float32);
     return kAudioServicesNoError == AHSGetPropertyData(GetObjectID(),
-                                                       &virtualMasterBalanceAddress,
-                                                       &virtualMasterVolumePropertySize,
-                                                       &outVirtualMasterBalance);
+                                                       &virtualMainBalanceAddress,
+                                                       &virtualMainVolumePropertySize,
+                                                       &outVirtualMainBalance);
 }
 
 #pragma mark Implementation

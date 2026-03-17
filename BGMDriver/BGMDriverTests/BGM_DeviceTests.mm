@@ -17,7 +17,7 @@
 //  BGM_DeviceTests.mm
 //  BGMDriver
 //
-//  Copyright © 2016 Kyle Neideck
+//  Copyright © 2016, 2026 Kyle Neideck
 //
 
 // Unit Include
@@ -56,8 +56,8 @@ TestBGM_Device::TestBGM_Device()
                CFSTR(kBGMDeviceModelUID),
                kObjectID_Stream_Input,
                kObjectID_Stream_Output,
-               kObjectID_Volume_Output_Master,
-               kObjectID_Mute_Output_Master)
+               kObjectID_Volume_Output_Main,
+               kObjectID_Mute_Output_Main)
 {
     Activate();
 }

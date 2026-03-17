@@ -17,7 +17,7 @@
 //  BGMStatusBarItem.m
 //  BGMApp
 //
-//  Copyright © 2019, 2020 Kyle Neideck
+//  Copyright © 2019, 2020, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -243,7 +243,7 @@ static CGFloat const kVolumeIconAdditionalVerticalPadding = 0.075;
     // give up.
     BGM_Utils::LogAndSwallowExceptions(BGMDbgArgs, [&] {
         AudioObjectPropertyScope scope = kAudioObjectPropertyScopeOutput;
-        AudioObjectPropertyScope element = kAudioObjectPropertyElementMaster;
+        AudioObjectPropertyScope element = kAudioObjectPropertyElementMain;
 
         BOOL hasVolume = bgmDevice.HasVolumeControl(scope, element);
 
