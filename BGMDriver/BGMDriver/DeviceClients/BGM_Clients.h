@@ -94,7 +94,7 @@ public:
     // caller should start the hardware).
     //
     // Not real-time safe.
-    bool                                StartIO();
+    bool                                StartIO(UInt32 inClientID);
     // Tracks that a client has stopped IO. When the last client stops, immediately marks
     // non-BGMApp clients as not doing IO and sends a notification for
     // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp if that changed its value.

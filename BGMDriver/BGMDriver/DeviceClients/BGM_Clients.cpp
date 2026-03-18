@@ -145,7 +145,7 @@ void    BGM_Clients::SendIORunningPropertyNotification()
     }
 }
 
-bool    BGM_Clients::StartIO()
+bool    BGM_Clients::StartIO(UInt32 inClientID)
 {
     CAMutex::Locker theLocker(mMutex);
 
@@ -153,7 +153,15 @@ bool    BGM_Clients::StartIO()
             CAException(kAudioHardwareIllegalOperationError),
             "BGM_Clients::StartIO: mStartCount overflow");
 
+    // Update the kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp property.
+    if(!IsBGMApp(inClientID))
+    {
+        RecordNonBGMAppIO(inClientID);
+        SendIORunningPropertyNotification();
+    }
+
     const bool isFirstClient = (mStartCount == 0);
+    ++mStartCount;
 
     if(isFirstClient)
     {
@@ -179,8 +187,6 @@ bool    BGM_Clients::StartIO()
         dispatch_resume(theTimer);
         mInactivityTimer = theTimer;
     }
-
-    ++mStartCount;
 
     return isFirstClient;
 }

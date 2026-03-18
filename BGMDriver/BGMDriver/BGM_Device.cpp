@@ -1254,7 +1254,7 @@ void	BGM_Device::StartIO(UInt32 inClientID)
         //   - BGMApp starts the hardware and, after the hardware is ready, replies to BGMDriver's message.
         //   - BGMDriver lets the host know that it's ready to do IO by returning from StartIO.
         
-        const bool isFirstClient = mClients.StartIO();
+        const bool isFirstClient = mClients.StartIO(inClientID);
 
         if(isFirstClient)
         {

@@ -152,7 +152,7 @@ void    BGMPlayThrough::Activate()
         
         DebugMsg("BGMPlayThrough::Activate: Registering for notifications from BGMDevice.");
         
-        mInputDevice.AddPropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunning),
+        mInputDevice.AddPropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
                                          &BGMPlayThrough::BGMDeviceListenerProc,
                                          this);
         mInputDevice.AddPropertyListener(CAPropertyAddress(kAudioDeviceProcessorOverload),
@@ -199,7 +199,7 @@ void    BGMPlayThrough::Deactivate()
             // There's not much we can do if these calls throw. The docs for AudioObjectRemovePropertyListener
             // just say that means it failed.
             BGMLogAndSwallowExceptions("BGMPlayThrough::Deactivate", [&] {
-                mInputDevice.RemovePropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunning),
+                mInputDevice.RemovePropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
                                                     &BGMPlayThrough::BGMDeviceListenerProc,
                                                     this);
             });
@@ -554,7 +554,7 @@ OSStatus    BGMPlayThrough::WaitForOutputDeviceToStart() noexcept
     else if(initialState != IOState::Starting)
     {
         // Warn if we haven't been told to start the output device yet. Usually means we
-        // haven't received a kAudioDevicePropertyDeviceIsRunning notification yet, which can
+        // haven't received a kAudioDevicePropertyDeviceIsRunningSomewhere notification yet, which can
         // happen. It's most common when the user changes the output device while IO is
         // running.
         LogWarning("BGMPlayThrough::WaitForOutputDeviceToStart: Device not starting");
@@ -846,8 +846,8 @@ OSStatus    BGMPlayThrough::BGMDeviceListenerProc(AudioObjectID inObjectID,
             //       requested by the first BGMDeviceListenerProc call, and
             //     - the second BGMDeviceListenerProc call waits for the first to unlock the state mutex.
                 
-            case kAudioDevicePropertyDeviceIsRunning:  // Received on the IO thread before our IOProc is called
-                HandleBGMDeviceIsRunning(refCon);
+            case kAudioDevicePropertyDeviceIsRunningSomewhere:
+                HandleBGMDeviceIsRunningSomewhere(refCon);
                 break;
                 
             case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
@@ -865,20 +865,16 @@ OSStatus    BGMPlayThrough::BGMDeviceListenerProc(AudioObjectID inObjectID,
 }
 
 // static
-void    BGMPlayThrough::HandleBGMDeviceIsRunning(BGMPlayThrough* refCon)
+void    BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere(BGMPlayThrough* refCon)
 {
-    // TODO: This handler never does anything useful. kAudioDevicePropertyDeviceIsRunning is a per-client property
-    //       managed by the HAL. It fires when BGMApp's own IO starts/stops on the device. So by the time this handler
-    //       runs, playthrough has already been started by BGMXPCListener::startPlayThroughSyncWithReply, and the
-    //       Start() call here is redundant (but harmless).
+    // Note that kAudioDevicePropertyDeviceIsRunningSomewhere fires as soon as any client starts
+    // doing IO on BGMDevice. kAudioDevicePropertyDeviceIsRunning wouldn't work for this because
+    // it only fires when BGMApp's own IO procs start or stop.
     //
-    //       That said, we might want to consider using kAudioDevicePropertyDeviceIsRunningSomewhere instead, which does
-    //       what we thought kAudioDevicePropertyDeviceIsRunning did. (Fires as soon as any client starts
-    //       IO.) It might be faster than the XPC call in some cases, so by having both we'd always start as fast as
-    //       possible. It would also let BGMApp start playthrough even if BGMXPCHelper isn't working for some reason.
-    //
-    //       The other option is to just delete this function.
-    DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunning: Got notification");
+    // Either this notification or BGMXPCListener::startPlayThroughSyncWithReply will start
+    // playthrough, whichever we get first, in case one is faster than the other. It also allows
+    // playthrough to start even if BGMXPCHelper isn't working for some reason.
+    DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere: Got notification");
     
     // This is dispatched because it can block and
     //   - we might be on a real-time thread, or
@@ -894,20 +890,21 @@ void    BGMPlayThrough::HandleBGMDeviceIsRunning(BGMPlayThrough* refCon)
             
             // Set to true initially because if we fail to get this property from BGMDevice we want to
             // try to start playthrough anyway.
-            bool isRunningSomewhereOtherThanBGMApp = true;
+            bool isRunningSomewhere = true;
             
-            BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunning", [&]() {
-                // IsRunning doesn't always return true when IO is starting. Using
-                // RunningSomewhereOtherThanBGMApp instead seems to be working so far.
-                isRunningSomewhereOtherThanBGMApp =
-                    IsRunningSomewhereOtherThanBGMApp(refCon->mInputDevice);
+            BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunningSomewhere", [&]() {
+                AudioObjectPropertyAddress theAddress;
+                theAddress.mSelector = kAudioDevicePropertyDeviceIsRunningSomewhere;
+                theAddress.mScope = kAudioObjectPropertyScopeGlobal;
+                theAddress.mElement = kAudioObjectPropertyElementMain;
+                isRunningSomewhere = (refCon->mInputDevice.GetPropertyData_UInt32(theAddress) != 0);
             });
 
-            DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunning: "
-                     "BGMDevice is %srunning somewhere other than BGMApp",
-                     isRunningSomewhereOtherThanBGMApp ? "" : "not ");
+            DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere: "
+                     "BGMDevice is %srunning somewhere",
+                     isRunningSomewhere ? "" : "not ");
             
-            if(isRunningSomewhereOtherThanBGMApp)
+            if(isRunningSomewhere)
             {
                 refCon->mToldOutputDeviceToStartAt = mach_absolute_time();
 
@@ -916,7 +913,7 @@ void    BGMPlayThrough::HandleBGMDeviceIsRunning(BGMPlayThrough* refCon)
                 //       times (with a very short delay) before handling them by showing an unobtrusive error
                 //       message or something. Then try a different device or just set the system device back
                 //       to the real device.
-                BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunning", [&refCon]() {
+                BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunningSomewhere", [&refCon]() {
                     refCon->Start();
                 });
             }

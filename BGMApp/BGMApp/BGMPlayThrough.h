@@ -133,7 +133,7 @@ private:
                                               UInt32 inNumberAddresses,
                                               const AudioObjectPropertyAddress* inAddresses,
                                               void* __nullable inClientData);
-    static void         HandleBGMDeviceIsRunning(BGMPlayThrough* refCon);
+    static void         HandleBGMDeviceIsRunningSomewhere(BGMPlayThrough* refCon);
     static void         HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp(BGMPlayThrough* refCon);
     
     static bool         IsRunningSomewhereOtherThanBGMApp(const BGMAudioDevice& inBGMDevice);

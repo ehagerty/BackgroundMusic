@@ -84,7 +84,7 @@
 
     // It should add the property listeners it needs.
     std::set<AudioObjectPropertySelector> expectedProperties {
-            kAudioDevicePropertyDeviceIsRunning,
+            kAudioDevicePropertyDeviceIsRunningSomewhere,
             kAudioDeviceProcessorOverload,
             kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp
     };
