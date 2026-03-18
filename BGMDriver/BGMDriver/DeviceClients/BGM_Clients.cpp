@@ -145,21 +145,88 @@ void    BGM_Clients::SendIORunningPropertyNotification()
     }
 }
 
-void    BGM_Clients::StopIO()
+bool    BGM_Clients::StartIO()
 {
-    mLastNonBGMAppIOTime.store(0, std::memory_order_relaxed);
+    CAMutex::Locker theLocker(mMutex);
 
-    // Send a property change notification if the property was true the last time we sent a notification.
-    const bool wasRunning = mLastNotifiedIsRunning.exchange(false, std::memory_order_relaxed);
+    ThrowIf(mStartCount == UINT64_MAX,
+            CAException(kAudioHardwareIllegalOperationError),
+            "BGM_Clients::StartIO: mStartCount overflow");
 
-    if(wasRunning)
+    const bool isFirstClient = (mStartCount == 0);
+
+    if(isFirstClient)
     {
-        DebugMsg("BGM_Clients::StopIO: isRunningSomewhereOtherThanBGMApp changed to false");
-        CADispatchQueue::GetGlobalSerialQueue().Dispatch(false, ^{
-            AudioObjectPropertyAddress theAddr = kBGMRunningSomewhereOtherThanBGMAppAddress;
-            BGM_PlugIn::Host_PropertiesChanged(mOwnerDeviceID, 1, &theAddr);
+        // Start a periodic timer (500 ms interval) to send notifications for
+        // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp when it changes.
+        BGMAssert(mInactivityTimer == nullptr, "BGM_Clients::StartIO: Inactivity timer already running");
+        dispatch_queue_t theTimerQueue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
+        dispatch_source_t __nonnull theTimer =
+            dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, theTimerQueue);
+        dispatch_source_set_timer(theTimer,
+                                  dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC),
+                                  500 * NSEC_PER_MSEC,
+                                  100 * NSEC_PER_MSEC);
+        dispatch_source_set_event_handler(theTimer, ^{
+            BGMLogAndSwallowExceptions("BGM_Clients::StartIO inactivityTimer", ([&] {
+                CAMutex::Locker theTimerLocker(mMutex);
+                if(mInactivityTimer == theTimer && mStartCount > 0)
+                {
+                    SendIORunningPropertyNotification();
+                }
+            }));
         });
+        dispatch_resume(theTimer);
+        mInactivityTimer = theTimer;
     }
+
+    ++mStartCount;
+
+    return isFirstClient;
+}
+
+bool    BGM_Clients::StopIO()
+{
+    CAMutex::Locker theLocker(mMutex);
+
+    ThrowIf(mStartCount == 0,
+            CAException(kAudioHardwareIllegalOperationError),
+            "BGM_Clients::StopIO: mStartCount underflow");
+
+    --mStartCount;
+    const bool isLastClient = (mStartCount == 0);
+
+    if(isLastClient)
+    {
+        if(mInactivityTimer != nullptr)
+        {
+            dispatch_source_cancel(BGM_Utils::NN(mInactivityTimer));
+            dispatch_release(BGM_Utils::NN(mInactivityTimer));
+            mInactivityTimer = nullptr;
+        }
+
+        mLastNonBGMAppIOTime.store(0, std::memory_order_relaxed);
+
+        // Send a property change notification if the property was true the last time we sent a notification.
+        const bool wasRunning = mLastNotifiedIsRunning.exchange(false, std::memory_order_relaxed);
+
+        if(wasRunning)
+        {
+            DebugMsg("BGM_Clients::StopIO: isRunningSomewhereOtherThanBGMApp changed to false");
+            CADispatchQueue::GetGlobalSerialQueue().Dispatch(false, ^{
+                AudioObjectPropertyAddress theAddr = kBGMRunningSomewhereOtherThanBGMAppAddress;
+                BGM_PlugIn::Host_PropertiesChanged(mOwnerDeviceID, 1, &theAddr);
+            });
+        }
+    }
+
+    return isLastClient;
+}
+
+bool    BGM_Clients::IsIORunning() const
+{
+    CAMutex::Locker theLocker(mMutex);
+    return mStartCount > 0;
 }
 
 #pragma mark Music Player

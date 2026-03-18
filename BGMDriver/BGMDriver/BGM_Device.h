@@ -182,7 +182,6 @@ private:
 	void						_HW_Open();
 	void						_HW_Close();
 	kern_return_t				_HW_StartIO() REQUIRES(mStateMutex);
-	void						_HW_StopIO() REQUIRES(mStateMutex);
 	Float64						_HW_GetSampleRate() const;
 	kern_return_t				_HW_SetSampleRate(Float64 inNewSampleRate);
 	UInt32						_HW_GetRingBufferFrameSize() const;
@@ -229,10 +228,6 @@ private:
     CAMutex                     mStateMutex;
     CAMutex						mIOMutex;
 
-    // Reference count of active IO clients. Used to gate _HW_StartIO/_HW_StopIO and to answer
-    // kAudioDevicePropertyDeviceIsRunning.
-    UInt64                      mStartCount GUARDED_BY(mStateMutex) = 0;
-    
     const Float64               kSampleRateDefault = 44100.0;
     // Before we can change sample rate, the host has to stop the device. The new sample rate is
     // stored here while it does.
@@ -270,11 +265,6 @@ private:
 	BGM_MuteControl				mMuteControl;
     bool                        mPendingOutputVolumeControlEnabled = true;
     bool                        mPendingOutputMuteControlEnabled   = true;
-
-    // This timer fires every 500 ms while IO is running. It's used to update the
-    // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp property when non-BGMApp clients stop doing IO.
-    // TODO: Split BGMDevice into an input and an output device so this isn't needed.
-    dispatch_source_t __nullable mInactivityTimer GUARDED_BY(mStateMutex) { nullptr };
 
 };
 

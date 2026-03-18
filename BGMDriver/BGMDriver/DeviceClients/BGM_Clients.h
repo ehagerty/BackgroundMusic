@@ -35,6 +35,7 @@
 // System Includes
 #include <atomic>
 #include <CoreAudio/AudioServerPlugIn.h>
+#include <dispatch/dispatch.h>
 
 
 // Forward Declarations
@@ -76,9 +77,9 @@ public:
     bool                                ClientsOtherThanBGMAppRunningIO() const noexcept;
     // If inClientID isn't BGMApp, records that a non-BGMApp client is doing IO.
     //
-    // We only update a timestamp here rather than sending property change notifications so this
-    // function can be real-time safe. The notifications are handled separately by
-    // SendIORunningPropertyNotification and StopIO.
+    // Only updates a timestamp, rather than sending property change notifications, so it can be
+    // real-time safe. The notifications are handled separately by SendIORunningPropertyNotification
+    // and StopIO.
     //
     // Real-time safe.
     void                                RecordNonBGMAppIO(UInt32 inClientID) noexcept;
@@ -88,14 +89,27 @@ public:
     //
     // Not real-time safe.
     void                                SendIORunningPropertyNotification();
-    // Immediately marks non-BGMApp clients as not doing IO and sends a notification for the
+
+    // Tracks that a client has started IO. Returns true if this is the first client (so the
+    // caller should start the hardware).
+    //
+    // Not real-time safe.
+    bool                                StartIO();
+    // Tracks that a client has stopped IO. When the last client stops, immediately marks
+    // non-BGMApp clients as not doing IO and sends a notification for
     // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp if that changed its value.
     // Assumes that value comes from ClientsOtherThanBGMAppRunningIO.
     //
-    // Call this when the device stops IO.
+    // Returns true if this was the last client.
+    // Throws if more clients stop IO than have started IO.
     //
     // Not real-time safe.
-    void                                StopIO();
+    bool                                StopIO();
+    // Returns true if any client is currently doing IO, i.e. StartIO has been called more times
+    // than StopIO.
+    //
+    // Not real-time safe.
+    bool                                IsIORunning() const;
     
     inline pid_t                        GetMusicPlayerProcessIDProperty() const { return mMusicPlayerProcessIDProperty; }
     inline CFStringRef                  CopyMusicPlayerBundleIDProperty() const { return mMusicPlayerBundleIDProperty.CopyCFString(); }
@@ -127,15 +141,20 @@ private:
     const AudioObjectID                 mOwnerDeviceID;
     BGM_ClientMap                       mClientMap;
 
-    CAMutex                             mMutex { "Clients" };
+    mutable CAMutex                     mMutex { "Clients" };
 
-    // todo either move mStartCount and mInactivityTimer here from BGM_Device, or delete this comment
-    // Counter for the number of clients that are doing IO.
+    // Reference count of clients doing IO.
     //
-    // We need to reference count this rather than just using a bool because the HAL might (but usually
-    // doesn't) call our StartIO/StopIO functions for clients other than the first to start and last to
-    // stop.
-    // UInt64                              mStartCount GUARDED_BY(mMutex) = 0;
+    // The HAL currently only calls StartIO for the first client and StopIO for the last, but we
+    // don't want to assume that will always be the case (and Apple's sample code doesn't assume
+    // that), so we use a counter instead of just a bool.
+    UInt64                              mStartCount GUARDED_BY(mMutex) = 0;
+
+    // This timer fires every 500 ms while IO is running. It's used to update the
+    // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp property when non-BGMApp
+    // clients stop doing IO.
+    // TODO: Split BGMDevice into an input and an output device so this isn't needed.
+    dispatch_source_t __nullable        mInactivityTimer GUARDED_BY(mMutex) { nullptr };
 
     // Atomic so they can be accessed on both real-time and non-RT threads.
 
