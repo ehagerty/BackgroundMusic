@@ -19,6 +19,7 @@
 //
 //  Copyright © 2016-2019 Kyle Neideck
 //  Copyright © 2017 Andrew Tonner
+//  Copyright © 2026 GloryWord
 //
 
 // Self Include

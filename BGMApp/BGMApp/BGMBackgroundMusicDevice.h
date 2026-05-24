@@ -17,7 +17,7 @@
 //  BGMBackgroundMusicDevice.h
 //  BGMApp
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 //  The interface to BGMDevice, the main virtual device published by BGMDriver, and the second
 //  instance of that device, which handles UI-related audio. In most cases, users of this class
@@ -128,6 +128,8 @@ private:
 
     static std::vector<CACFString>
                         ResponsibleBundleIDsOf(CACFString inParentBundleID);
+
+    friend class BGMBackgroundMusicDeviceTestAccess;
 
 #pragma mark Audible State
 

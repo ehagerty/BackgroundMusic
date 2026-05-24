@@ -17,13 +17,12 @@
 //  BGMMusicPlayersUnitTests.mm
 //  BGMAppUnitTests
 //
-//  Copyright © 2016-2020 Kyle Neideck
+//  Copyright © 2016-2020, 2026 Kyle Neideck
+//  Copyright © 2026 GloryWord
 //
 
 // Unit includes
-#define private public
 #import "BGMBackgroundMusicDevice.h"
-#undef private
 #import "BGMMusicPlayers.h"
 
 // BGM includes
@@ -48,9 +47,18 @@
 // CAHALAudioSystemObject, are also mocked. The unit tests are compiled with mock implementations:
 // Mock_CAHALAudioObject.cpp and Mock_CAHALAudioSystemObject.cpp.
 
+// Friend of BGMBackgroundMusicDevice so we can reach the private static helper from tests.
+class BGMBackgroundMusicDeviceTestAccess {
+public:
+    static std::vector<CACFString> ResponsibleBundleIDsOf(CACFString inParentBundleID) {
+        return BGMBackgroundMusicDevice::ResponsibleBundleIDsOf(inParentBundleID);
+    }
+};
+
 static NSArray<NSString*>* BGMResponsibleBundleIDs(NSString* bundleID) {
     std::vector<CACFString> responsibleBundleIDs =
-            BGMBackgroundMusicDevice::ResponsibleBundleIDsOf(CACFString((__bridge CFStringRef)bundleID));
+            BGMBackgroundMusicDeviceTestAccess::ResponsibleBundleIDsOf(
+                    CACFString((__bridge_retained CFStringRef)bundleID));
 
     NSMutableArray<NSString*>* result =
             [NSMutableArray arrayWithCapacity:(NSUInteger)responsibleBundleIDs.size()];
