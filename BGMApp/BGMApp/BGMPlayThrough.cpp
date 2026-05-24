@@ -17,7 +17,7 @@
 //  BGMPlayThrough.cpp
 //  BGMApp
 //
-//  Copyright © 2016, 2017, 2020 Kyle Neideck
+//  Copyright © 2016, 2017, 2020, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -602,7 +602,7 @@ OSStatus    BGMPlayThrough::WaitForOutputDeviceToStart() noexcept
 
         struct mach_timebase_info baseInfo = { 0, 0 };
         mach_timebase_info(&baseInfo);
-        UInt64 base = baseInfo.numer / baseInfo.denom;
+        Float64 base = static_cast<Float64>(baseInfo.numer) / baseInfo.denom;
 
         DebugMsg("BGMPlayThrough::WaitForOutputDeviceToStart: Started %f ms after notification, %f "
                  "ms after entering WaitForOutputDeviceToStart.",
@@ -1121,7 +1121,8 @@ OSStatus    BGMPlayThrough::OutputDeviceIOProc(AudioObjectID           inDevice,
                                                 refCon->mInToOutSampleOffset);
 
             // Recalculate the in-to-out offset and read head.
-            refCon->mInToOutSampleOffset = inOutputTime->mSampleTime - lastInputSampleTime;
+            refCon->mInToOutSampleOffset =
+                    inOutputTime->mSampleTime - static_cast<Float64>(lastInputSampleTime);
             readHeadSampleTime = static_cast<CARingBuffer::SampleTime>(
                     inOutputTime->mSampleTime - refCon->mInToOutSampleOffset);
         }

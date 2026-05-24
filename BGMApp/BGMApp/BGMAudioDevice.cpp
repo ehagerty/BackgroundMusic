@@ -17,7 +17,7 @@
 //  BGMAudioDevice.cpp
 //  BGMApp
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -155,7 +155,7 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
 
         if(numChannels > 0)  // Avoid divide by zero.
         {
-            volume /= numChannels;
+            volume /= static_cast<Float32>(numChannels);
         }
     }
 

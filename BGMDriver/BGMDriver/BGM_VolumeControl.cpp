@@ -17,7 +17,7 @@
 //  BGM_VolumeControl.cpp
 //  BGMDriver
 //
-//  Copyright © 2016, 2017 Kyle Neideck
+//  Copyright © 2016, 2017, 2026 Kyle Neideck
 //  Copyright (C) 2013 Apple Inc. All Rights Reserved.
 //
 
@@ -440,7 +440,8 @@ void    BGM_VolumeControl::SetVolumeRaw(SInt32 inNewVolumeRaw)
         // TODO: This assumes the control should never boost the signal. (So, technically, it never
         //       actually applies gain, only loss.)
         SInt32 theRawRange = mMaxVolumeRaw - mMinVolumeRaw;
-        SInt32 theSliderPositionInRawSteps = static_cast<SInt32>(theSliderPosition * theRawRange);
+        SInt32 theSliderPositionInRawSteps =
+                static_cast<SInt32>(theSliderPosition * static_cast<Float32>(theRawRange));
         theSliderPositionInRawSteps += mMinVolumeRaw;
 
         mAmplitudeGain = mVolumeCurve.ConvertRawToScalar(theSliderPositionInRawSteps);

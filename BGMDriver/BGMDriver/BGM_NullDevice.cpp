@@ -17,7 +17,7 @@
 //  BGM_NullDevice.cpp
 //  BGMDriver
 //
-//  Copyright © 2017 Kyle Neideck
+//  Copyright © 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -471,8 +471,8 @@ void    BGM_NullDevice::GetZeroTimeStamp(Float64& outSampleTime,
         (static_cast<Float64>(mNumberTimeStamps) * theHostTicksPerPeriod);
 
     // Set the return values.
-    outSampleTime = mNumberTimeStamps * kZeroTimeStampPeriod;
-    outHostTime = static_cast<UInt64>(mAnchorHostTime + theHostTicksSinceAnchor);
+    outSampleTime = static_cast<Float64>(mNumberTimeStamps) * kZeroTimeStampPeriod;
+    outHostTime = mAnchorHostTime + static_cast<UInt64>(theHostTicksSinceAnchor);
     outSeed = 1;
 }
 
