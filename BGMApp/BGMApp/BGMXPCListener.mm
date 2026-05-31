@@ -17,7 +17,7 @@
 //  BGMXPCListener.mm
 //  BGMApp
 //
-//  Copyright © 2016, 2017 Kyle Neideck
+//  Copyright © 2016, 2017, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -189,7 +189,7 @@
     
     try {
         err = [audioDevices startPlayThroughSync:isUI];
-    } catch (CAException e) {
+    } catch (const CAException& e) {
         // startPlayThroughSync should never throw a CAException, but check anyway in case we change that at some point.
         LogError("BGMXPCListener::startPlayThroughSyncWithReply: Caught CAException (%d). Replying kBGMXPC_HardwareError.",
                  e.GetError());

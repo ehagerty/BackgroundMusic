@@ -132,7 +132,7 @@ void    BGMPlayThrough::Activate()
             Float64 outputSampleRate = mOutputDevice.GetNominalSampleRate();
             mInputDevice.SetNominalSampleRate(outputSampleRate);
         }
-        catch (CAException e)
+        catch (const CAException& e)
         {
             LogWarning("BGMPlayThrough::Activate: Failed to sync device sample rates. Error: %d",
                        e.GetError());
@@ -144,7 +144,7 @@ void    BGMPlayThrough::Activate()
             UInt32 outputBufferSize = mOutputDevice.GetIOBufferSize();
             mInputDevice.SetIOBufferSize(outputBufferSize);
         }
-        catch (CAException e)
+        catch (const CAException& e)
         {
             LogWarning("BGMPlayThrough::Activate: Failed to sync device buffer sizes. Error: %d",
                        e.GetError());
@@ -290,7 +290,7 @@ void    BGMPlayThrough::CreateIOProcIDs()
         {
             mInputDeviceIOProcID = mInputDevice.CreateIOProcID(&BGMPlayThrough::InputDeviceIOProc, this);
         }
-        catch(CAException e)
+        catch(const CAException& e)
         {
             LogWarning("BGMPlayThrough::CreateIOProcIDs: Failed to create input IOProc ID. mInputDevice = %d",
                        mInputDevice.GetObjectID());
@@ -301,7 +301,7 @@ void    BGMPlayThrough::CreateIOProcIDs()
         {
             mOutputDeviceIOProcID = mOutputDevice.CreateIOProcID(&BGMPlayThrough::OutputDeviceIOProc, this);
         }
-        catch(CAException e)
+        catch(const CAException& e)
         {
             LogWarning("BGMPlayThrough::CreateIOProcIDs: Failed to create output IOProc ID. mOutputDevice = %d",
                        mOutputDevice.GetObjectID());
@@ -313,7 +313,7 @@ void    BGMPlayThrough::CreateIOProcIDs()
         {
             // Should never happen if CAHALAudioDevice::CreateIOProcID didn't throw.
             LogError("BGMPlayThrough::CreateIOProcIDs: Null IOProc ID returned by CreateIOProcID");
-            throw new CAException(kAudioHardwareIllegalOperationError);
+            throw CAException(kAudioHardwareIllegalOperationError);
         }
         
         // TODO: Try using SetIOCycleUsage to reduce latency? Our IOProcs don't really do anything except copy a small
@@ -328,7 +328,7 @@ void    BGMPlayThrough::CreateIOProcIDs()
         LogWarning("BGMPlayThrough::CreateIOProcIDs: Failed to create IOProcs.%s%s",
                    (inDeviceAlive ? "" : " Input device not alive."),
                    (outDeviceAlive ? "" : " Output device not alive."));
-        throw new CAException(kAudioHardwareIllegalOperationError);
+        throw CAException(kAudioHardwareIllegalOperationError);
     }
 }
 
@@ -353,7 +353,7 @@ void    BGMPlayThrough::DestroyIOProcIDs()
             {
                 device.DestroyIOProcID(ioProcID);
             }
-            catch(CAException e)
+            catch(const CAException& e)
             {
                 if((e.GetError() == kAudioHardwareBadDeviceError) || (e.GetError() == kAudioHardwareBadObjectError))
                 {
@@ -484,7 +484,7 @@ void    BGMPlayThrough::Start()
         mOutputDeviceIOProcState = IOState::Starting;
         mOutputDevice.StartIOProc(mOutputDeviceIOProcID);
     }
-    catch(CAException e)
+    catch(const CAException& e)
     {
         ReleaseThreadsWaitingForOutputToStart();
         
@@ -1214,7 +1214,7 @@ bool    BGMPlayThrough::UpdateIOProcState(const char* inCallerName,
                 // time playthrough is started.
                 stoppedSuccessfully = true;
             }
-            catch(CAException e)
+            catch(const CAException& e)
             {
                 inRTLogger.LogExceptionStoppingIOProc(inCallerName, e.GetError());
             }

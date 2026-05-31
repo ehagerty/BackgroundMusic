@@ -168,7 +168,7 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
         {
             didSetVolume = SetMainVolumeScalar(inScope, volume);
         }
-        catch(CAException e)
+        catch(const CAException& e)
         {
             OSStatus err = e.GetError();
             char err4CC[5] = CA4CCToCString(err);
