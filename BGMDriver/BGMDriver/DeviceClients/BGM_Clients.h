@@ -88,7 +88,7 @@ public:
     // comes from ClientsOtherThanBGMAppRunningIO.
     //
     // Not real-time safe.
-    void                                SendIORunningPropertyNotification();
+    void                                SendIORunningPropertyNotification() noexcept;
 
     // Tracks that a client has started IO. Returns true if this is the first client (so the
     // caller should start the hardware).

@@ -243,7 +243,7 @@ static CGFloat const kVolumeIconAdditionalVerticalPadding = 0.075;
     // give up.
     BGM_Utils::LogAndSwallowExceptions(BGMDbgArgs, [&] {
         AudioObjectPropertyScope scope = kAudioObjectPropertyScopeOutput;
-        AudioObjectPropertyScope element = kAudioObjectPropertyElementMain;
+        AudioObjectPropertyElement element = kAudioObjectPropertyElementMain;
 
         BOOL hasVolume = bgmDevice.HasVolumeControl(scope, element);
 

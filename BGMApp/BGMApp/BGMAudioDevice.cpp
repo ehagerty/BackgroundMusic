@@ -325,10 +325,10 @@ bool    BGMAudioDevice::GetVirtualMainBalance(AudioObjectPropertyScope inScope,
     }
 #pragma clang diagnostic pop
 
-    UInt32 virtualMainVolumePropertySize = sizeof(Float32);
+    UInt32 virtualMainBalancePropertySize = sizeof(Float32);
     return kAudioServicesNoError == AHSGetPropertyData(GetObjectID(),
                                                        &virtualMainBalanceAddress,
-                                                       &virtualMainVolumePropertySize,
+                                                       &virtualMainBalancePropertySize,
                                                        &outVirtualMainBalance);
 }
 

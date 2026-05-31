@@ -128,7 +128,7 @@ void    BGM_Clients::RecordNonBGMAppIO(const UInt32 inClientID) noexcept
     }
 }
 
-void    BGM_Clients::SendIORunningPropertyNotification()
+void    BGM_Clients::SendIORunningPropertyNotification() noexcept
 {
     // Send a property change notification if the property has changed since the last time we sent a notification.
     const bool isRunning = ClientsOtherThanBGMAppRunningIO();
