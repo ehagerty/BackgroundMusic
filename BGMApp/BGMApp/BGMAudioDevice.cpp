@@ -189,6 +189,12 @@ void    BGMAudioDevice::CopyVolumeFrom(const BGMAudioDevice inDevice,
             {
                 didSetVolume = SetVirtualMainVolumeScalar(inScope, virtualMainVolume);
             }
+            else
+            {
+                // inDevice doesn't expose a virtual main volume, so fall back to the volume we
+                // already read from it above.
+                didSetVolume = SetVirtualMainVolumeScalar(inScope, volume);
+            }
         }
 
         if(!didSetVolume)
