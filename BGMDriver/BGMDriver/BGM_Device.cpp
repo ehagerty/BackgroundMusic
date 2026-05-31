@@ -136,7 +136,6 @@ BGM_Device::BGM_Device(AudioObjectID inObjectID,
 	mDeviceName(inDeviceName),
 	mDeviceUID(inDeviceUID),
 	mDeviceModelUID(inDeviceModelUID),
-    mWrappedAudioEngine(nullptr),
     mClients(inObjectID, &mTaskQueue),
     mInputStream(inInputStreamID, inObjectID, false, kSampleRateDefault),
     mOutputStream(inOutputStreamID, inObjectID, false, kSampleRateDefault),
@@ -144,7 +143,7 @@ BGM_Device::BGM_Device(AudioObjectID inObjectID,
     mVolumeControl(inOutputVolumeControlID, GetObjectID()),
     mMuteControl(inOutputMuteControlID, GetObjectID())
 {
-    // Initialises the loopback clock with the default sample rate and, if there is one, sets the wrapped device to the same sample rate
+    // Initialise the loopback clock with the default sample rate.
     SetSampleRate(kSampleRateDefault, true);
 }
 
@@ -155,9 +154,6 @@ BGM_Device::~BGM_Device()
 void	BGM_Device::Activate()
 {
 	CAMutex::Locker theStateLocker(mStateMutex);
-
-	//	Open the connection to the driver and initialize things.
-	//_HW_Open();
 
 	mInputStream.Activate();
 	mOutputStream.Activate();
@@ -193,8 +189,6 @@ void	BGM_Device::Deactivate()
 	//	mark the object inactive by calling the super-class
 	BGM_AbstractDevice::Deactivate();
 	
-	//	close the connection to the driver
-	//_HW_Close();
 }
 
 void    BGM_Device::InitLoopback()
@@ -1258,10 +1252,15 @@ void	BGM_Device::StartIO(UInt32 inClientID)
 
         if(isFirstClient)
         {
-            kern_return_t theError = _HW_StartIO();
-            ThrowIfKernelError(theError,
-                               CAException(theError),
-                               "BGM_Device::StartIO: Failed to start because of an error calling down to the driver.");
+            // Reset the loopback timing values.
+            mLoopbackTime.numberTimeStamps = 0;
+            mLoopbackTime.anchorHostTime = CAHostTimeBase::GetTheCurrentTime();
+            // Reset the most-recent audible/silent sample times. mAudibleState is usually guarded
+            // by the IO mutex, but we haven't started IO yet (and this function can only be called
+            // by one thread at a time).
+            BGMAssert(mIOMutex.IsFree(),
+                      "BGM_Device::StartIO: IO mutex taken before starting IO");
+            mAudibleState.Reset();
         }
         
         clientIsBGMApp = mClients.IsBGMApp(inClientID);
@@ -1320,38 +1319,31 @@ void	BGM_Device::GetZeroTimeStamp(Float64& outSampleTime, UInt64& outHostTime, U
 	// accessing the buffers requires holding the IO mutex
 	CAMutex::Locker theIOLocker(mIOMutex);
     
-    if(mWrappedAudioEngine != NULL)
+    // We base our timing on the host. This is mostly from Apple's NullAudio.c sample code.
+    UInt64 theCurrentHostTime;
+    Float64 theHostTicksPerRingBuffer;
+    Float64 theHostTickOffset;
+    UInt64 theNextHostTime;
+
+    //	get the current host time
+    theCurrentHostTime = CAHostTimeBase::GetTheCurrentTime();
+
+    //	calculate the next host time
+    theHostTicksPerRingBuffer = mLoopbackTime.hostTicksPerFrame * kLoopbackRingBufferFrameSize;
+    theHostTickOffset = static_cast<Float64>(mLoopbackTime.numberTimeStamps + 1) * theHostTicksPerRingBuffer;
+    theNextHostTime = mLoopbackTime.anchorHostTime + static_cast<UInt64>(theHostTickOffset);
+
+    //	go to the next time if the next host time is less than the current time
+    if(theNextHostTime <= theCurrentHostTime)
     {
+        mLoopbackTime.numberTimeStamps++;
     }
-    else
-    {
-        // Without a wrapped device, we base our timing on the host. This is mostly from Apple's NullAudio.c sample code
-    	UInt64 theCurrentHostTime;
-    	Float64 theHostTicksPerRingBuffer;
-    	Float64 theHostTickOffset;
-    	UInt64 theNextHostTime;
-    	
-    	//	get the current host time
-        theCurrentHostTime = CAHostTimeBase::GetTheCurrentTime();
-    	
-    	//	calculate the next host time
-    	theHostTicksPerRingBuffer = mLoopbackTime.hostTicksPerFrame * kLoopbackRingBufferFrameSize;
-    	theHostTickOffset = static_cast<Float64>(mLoopbackTime.numberTimeStamps + 1) * theHostTicksPerRingBuffer;
-    	theNextHostTime = mLoopbackTime.anchorHostTime + static_cast<UInt64>(theHostTickOffset);
-    	
-    	//	go to the next time if the next host time is less than the current time
-    	if(theNextHostTime <= theCurrentHostTime)
-    	{
-            mLoopbackTime.numberTimeStamps++;
-    	}
-    	
-    	//	set the return values
-    	outSampleTime = static_cast<Float64>(mLoopbackTime.numberTimeStamps) * kLoopbackRingBufferFrameSize;
-    	outHostTime = mLoopbackTime.anchorHostTime +
-    	              static_cast<UInt64>(static_cast<Float64>(mLoopbackTime.numberTimeStamps) * theHostTicksPerRingBuffer);
-        // TODO: I think we should increment outSeed whenever this device switches to/from having a wrapped engine
-    	outSeed = 1;
-    }
+
+    //	set the return values
+    outSampleTime = static_cast<Float64>(mLoopbackTime.numberTimeStamps) * kLoopbackRingBufferFrameSize;
+    outHostTime = mLoopbackTime.anchorHostTime +
+                  static_cast<UInt64>(static_cast<Float64>(mLoopbackTime.numberTimeStamps) * theHostTicksPerRingBuffer);
+    outSeed = 1;
 }
 
 void	BGM_Device::WillDoIOOperation(UInt32 inOperationID, bool& outWillDo, bool& outWillDoInPlace) const
@@ -1641,20 +1633,7 @@ Float64	BGM_Device::GetSampleRate() const
     // The sample rate is guarded by the state lock. Note that we don't need to take the IO lock.
     CAMutex::Locker theStateLocker(mStateMutex);
 
-    Float64 theSampleRate;
-
-    // Report the sample rate from the wrapped device if we have one. Note that _HW_GetSampleRate
-    // the device's nominal sample rate, not one calculated from its timestamps.
-    if(mWrappedAudioEngine == nullptr)
-    {
-        theSampleRate = mLoopbackSampleRate;
-    }
-    else
-    {
-        theSampleRate = _HW_GetSampleRate();
-    }
-
-    return theSampleRate;
+    return mLoopbackSampleRate;
 }
 
 void	BGM_Device::RequestSampleRate(Float64 inRequestedSampleRate)
@@ -1798,16 +1777,6 @@ void BGM_Device::SetSampleRate(Float64 inSampleRate, bool force)
                  theCurrentSampleRate,
                  inSampleRate);
 
-        // Update the sample rate on the wrapped device if we have one.
-        if(mWrappedAudioEngine != nullptr)
-        {
-            kern_return_t theError = _HW_SetSampleRate(inSampleRate);
-            ThrowIfKernelError(theError,
-                               CAException(kAudioHardwareUnspecifiedError),
-                               "BGM_Device::SetSampleRate: Error setting the sample rate on the "
-                               "wrapped audio device.");
-        }
-
         // Update the sample rate for loopback.
         mLoopbackSampleRate = inSampleRate;
         InitLoopback();
@@ -1825,64 +1794,6 @@ void BGM_Device::SetSampleRate(Float64 inSampleRate, bool force)
 bool    BGM_Device::IsStreamID(AudioObjectID inObjectID) const noexcept
 {
     return (inObjectID == mInputStream.GetObjectID()) || (inObjectID == mOutputStream.GetObjectID());
-}
-
-#pragma mark Hardware Accessors
-
-// TODO: Out of laziness, some of these hardware functions do more than their names suggest
-
-void	BGM_Device::_HW_Open()
-{
-}
-
-void	BGM_Device::_HW_Close()
-{
-}
-
-kern_return_t	BGM_Device::_HW_StartIO()
-{
-	BGMAssert(mStateMutex.IsOwnedByCurrentThread(),
-              "BGM_Device::_HW_StartIO: Called without taking the state mutex");
-
-    if(mWrappedAudioEngine != nullptr)
-    {
-    }
-    
-    // Reset the loopback timing values
-    mLoopbackTime.numberTimeStamps = 0;
-    mLoopbackTime.anchorHostTime = CAHostTimeBase::GetTheCurrentTime();
-    // ...and the most-recent audible/silent sample times. mAudibleState is usually guarded by the
-	// IO mutex, but we haven't started IO yet (and this function can only be called by one thread
-	// at a time).
-	BGMAssert(mIOMutex.IsFree(), "BGM_Device::_HW_StartIO: IO mutex taken before starting IO");
-    mAudibleState.Reset();
-
-    return KERN_SUCCESS;
-}
-
-Float64	BGM_Device::_HW_GetSampleRate() const
-{
-    // This function should only be called when wrapping a device.
-    ThrowIf(mWrappedAudioEngine == nullptr,
-            CAException(kAudioHardwareUnspecifiedError),
-            "BGM_Device::_HW_GetSampleRate: No wrapped audio device");
-
-    return static_cast<Float64>(mWrappedAudioEngine->GetSampleRate());
-}
-
-kern_return_t	BGM_Device::_HW_SetSampleRate(Float64 inNewSampleRate)
-{
-    // This function should only be called when wrapping a device.
-    ThrowIf(mWrappedAudioEngine == nullptr,
-            CAException(kAudioHardwareUnspecifiedError),
-            "BGM_Device::_HW_SetSampleRate: No wrapped audio device");
-
-    return mWrappedAudioEngine->SetSampleRate(inNewSampleRate);
-}
-
-UInt32	BGM_Device::_HW_GetRingBufferFrameSize() const
-{
-    return (mWrappedAudioEngine != NULL) ? mWrappedAudioEngine->GetSampleBufferFrameSize() : 0;
 }
 
 #pragma mark Implementation

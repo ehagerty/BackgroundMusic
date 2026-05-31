@@ -33,7 +33,6 @@
 
 // Local Includes
 #include "BGM_Types.h"
-#include "BGM_WrappedAudioEngine.h"
 #include "BGM_Clients.h"
 #include "BGM_TaskQueue.h"
 #include "BGM_AudibleState.h"
@@ -176,16 +175,6 @@ private:
     /*! @return True if inObjectID is the ID of one of this device's streams. */
     inline bool                 IsStreamID(AudioObjectID inObjectID) const noexcept;
 
-#pragma mark Hardware Accessors
-    
-private:
-	void						_HW_Open();
-	void						_HW_Close();
-	kern_return_t				_HW_StartIO() REQUIRES(mStateMutex);
-	Float64						_HW_GetSampleRate() const;
-	kern_return_t				_HW_SetSampleRate(Float64 inNewSampleRate);
-	UInt32						_HW_GetRingBufferFrameSize() const;
-
 #pragma mark Implementation
     
 public:
@@ -232,8 +221,6 @@ private:
     // Before we can change sample rate, the host has to stop the device. The new sample rate is
     // stored here while it does.
     Float64                     mPendingSampleRate = kSampleRateDefault;
-    
-    BGM_WrappedAudioEngine* __nullable mWrappedAudioEngine;
     
     BGM_TaskQueue               mTaskQueue;
     
