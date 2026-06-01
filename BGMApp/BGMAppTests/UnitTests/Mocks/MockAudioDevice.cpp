@@ -17,7 +17,7 @@
 //  MockAudioDevice.cpp
 //  BGMAppUnitTests
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -25,6 +25,7 @@
 
 // BGM Includes
 #include "BGM_Types.h"
+#include "BGM_Utils.h"
 
 // STL Includes
 #include <functional>
@@ -37,6 +38,13 @@ MockAudioDevice::MockAudioDevice(const std::string& inUID)
     mIOBufferSize(512),
     MockAudioObject(static_cast<AudioObjectID>(std::hash<std::string>{}(inUID)))
 {
+    CFRetain(mRunningSomewhereOtherThanBGMApp);
+}
+
+MockAudioDevice::~MockAudioDevice()
+{
+    BGMAssertNonNull(mRunningSomewhereOtherThanBGMApp);
+    CFRelease(mRunningSomewhereOtherThanBGMApp);
 }
 
 CACFString MockAudioDevice::GetPlayerBundleID() const
@@ -59,3 +67,14 @@ void MockAudioDevice::SetPlayerBundleID(const CACFString& inPlayerBundleID)
     mPlayerBundleID = inPlayerBundleID;
 }
 
+CFTypeRef MockAudioDevice::GetRunningSomewhereOtherThanBGMAppProperty() const
+{
+    return mRunningSomewhereOtherThanBGMApp;
+}
+
+void MockAudioDevice::SetRunningSomewhereOtherThanBGMAppProperty(CFTypeRef inValue)
+{
+    CFRetain(inValue);
+    CFRelease(mRunningSomewhereOtherThanBGMApp);
+    mRunningSomewhereOtherThanBGMApp = inValue;
+}

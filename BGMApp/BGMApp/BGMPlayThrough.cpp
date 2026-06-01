@@ -150,32 +150,13 @@ void    BGMPlayThrough::Activate()
                        e.GetError());
         }
         
-        DebugMsg("BGMPlayThrough::Activate: Registering for notifications from BGMDevice.");
-        
-        mInputDevice.AddPropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
-                                         &BGMPlayThrough::BGMDeviceListenerProc,
-                                         this);
-        mInputDevice.AddPropertyListener(CAPropertyAddress(kAudioDeviceProcessorOverload),
-                                         &BGMPlayThrough::BGMDeviceListenerProc,
-                                         this);
-        
-        bool isBGMDevice = true;
-        CATry
-        isBGMDevice = mInputDevice.IsBGMDeviceInstance();
-        CACatch
-        
-        if(isBGMDevice)
+        if(!mInputDevice.IsBGMDeviceInstance())
         {
-            mInputDevice.AddPropertyListener(kBGMRunningSomewhereOtherThanBGMAppAddress,
-                                             &BGMPlayThrough::BGMDeviceListenerProc,
-                                             this);
-        }
-        else
-        {
-            LogWarning("BGMPlayThrough::Activate: Playthrough activated with an output device other "
+            LogWarning("BGMPlayThrough::Activate: Playthrough activated with an input device other "
                        "than BGMDevice. This hasn't been tested and is almost definitely a bug.");
-            BGMAssert(false, "BGMPlayThrough::Activate: !mInputDevice.IsBGMDeviceInstance()");
         }
+        BGMAssert(mInputDevice.IsBGMDeviceInstance(),
+                  "BGMPlayThrough::Activate: !mInputDevice.IsBGMDeviceInstance()");
     }
 }
 
@@ -187,36 +168,6 @@ void    BGMPlayThrough::Deactivate()
     {
         DebugMsg("BGMPlayThrough::Deactivate: Deactivating playthrough");
         
-        bool inputDeviceIsBGMDevice = true;
-
-        CATry
-        inputDeviceIsBGMDevice = mInputDevice.IsBGMDeviceInstance();
-        CACatch
-        
-        // Unregister notification listeners.
-        if(inputDeviceIsBGMDevice)
-        {
-            // There's not much we can do if these calls throw. The docs for AudioObjectRemovePropertyListener
-            // just say that means it failed.
-            BGMLogAndSwallowExceptions("BGMPlayThrough::Deactivate", [&] {
-                mInputDevice.RemovePropertyListener(CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
-                                                    &BGMPlayThrough::BGMDeviceListenerProc,
-                                                    this);
-            });
-            
-            BGMLogAndSwallowExceptions("BGMPlayThrough::Deactivate", [&] {
-                mInputDevice.RemovePropertyListener(CAPropertyAddress(kAudioDeviceProcessorOverload),
-                                                    &BGMPlayThrough::BGMDeviceListenerProc,
-                                                    this);
-            });
-            
-            BGMLogAndSwallowExceptions("BGMPlayThrough::Deactivate", [&] {
-                mInputDevice.RemovePropertyListener(kBGMRunningSomewhereOtherThanBGMAppAddress,
-                                                    &BGMPlayThrough::BGMDeviceListenerProc,
-                                                    this);
-            });
-        }
-
         BGMLogAndSwallowExceptions("BGMPlayThrough::Deactivate", [&] {
             Stop();
         });
@@ -474,6 +425,8 @@ void    BGMPlayThrough::Start()
     }
     
     DebugMsg("BGMPlayThrough::Start: Starting playthrough");
+    
+    mToldOutputDeviceToStartAt = mach_absolute_time();
     
     // Start our IOProcs.
     try
@@ -761,188 +714,42 @@ void    BGMPlayThrough::StopIfIdle()
     BGMAssert(mInputDevice.IsBGMDeviceInstance(),
               "BGMDevice not set as input device. StopIfIdle can't tell if other devices are idle.");
     
-    if(!IsRunningSomewhereOtherThanBGMApp(mInputDevice))
+    if(!mPlayingThrough || IsRunningSomewhereOtherThanBGMApp(mInputDevice))
     {
-        mLastNotifiedIOStoppedOnBGMDevice = mach_absolute_time();
-        
-        // Wait a bit before stopping playthrough.
-        //
-        // This keeps us from starting and stopping IO too rapidly, which wastes CPU, and gives BGMDriver time to update
-        // kAudioDeviceCustomPropertyDeviceAudibleState, which it can only do while IO is running. (The wait duration is
-        // more or less arbitrary, except that it has to be longer than kDeviceAudibleStateMinChangedFramesForUpdate.)
-
-        // 1 / sample rate = seconds per frame
-        Float64 nsecPerFrame = (1.0 / mInputDevice.GetNominalSampleRate()) * NSEC_PER_SEC;
-        UInt64 waitNsec = static_cast<UInt64>(20 * kDeviceAudibleStateMinChangedFramesForUpdate * nsecPerFrame);
-        UInt64 queuedAt = mLastNotifiedIOStoppedOnBGMDevice;
-        
-        DebugMsg("BGMPlayThrough::StopIfIdle: Will dispatch stop-if-idle block in %llu ns. %s%llu",
-                 waitNsec,
-                 "queuedAt=", queuedAt);
-        
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, waitNsec),
-                       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-                       ^{
-                           // Check the BGMPlayThrough instance hasn't been destructed since it queued this block
-                           if(mActive)
-                           {
-                               // The "2" is just to avoid shadowing the other locker
-                               CAMutex::Locker stateLocker2(mStateMutex);
-                               
-                               // Don't stop playthrough if IO has started running again or if
-                               // kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp has changed since
-                               // this block was queued
-                               if(mPlayingThrough
-                                  && !IsRunningSomewhereOtherThanBGMApp(mInputDevice)
-                                  && queuedAt == mLastNotifiedIOStoppedOnBGMDevice)
-                               {
-                                   DebugMsg("BGMPlayThrough::StopIfIdle: BGMDevice is only running IO for BGMApp. "
-                                            "Stopping playthrough.");
-                                   Stop();
-                               }
-                           }
-                       });
+        return;
     }
+
+    DebugMsg("BGMPlayThrough::StopIfIdle: BGMDevice is only running IO for BGMApp. "
+             "Stopping playthrough.");
+    Stop();
 }
 
-#pragma mark BGMDevice Listener
-
-// TODO: Listen for changes to the sample rate and IO buffer size of the output device and update the input device to match
-
-// static
-OSStatus    BGMPlayThrough::BGMDeviceListenerProc(AudioObjectID inObjectID,
-                                                  UInt32 inNumberAddresses,
-                                                  const AudioObjectPropertyAddress* __nonnull inAddresses,
-                                                  void* __nullable inClientData)
-{
-    // refCon (reference context) is the instance that registered the listener proc
-    BGMPlayThrough* refCon = static_cast<BGMPlayThrough*>(inClientData);
-    
-    // If the input device isn't BGMDevice, this listener proc shouldn't be registered
-    ThrowIf(inObjectID != refCon->mInputDevice.GetObjectID(),
-            CAException(kAudioHardwareBadObjectError),
-            "BGMPlayThrough::BGMDeviceListenerProc: notified about audio object other than BGMDevice");
-    
-    for(int i = 0; i < inNumberAddresses; i++)
-    {
-        switch(inAddresses[i].mSelector)
-        {
-            case kAudioDeviceProcessorOverload:
-                // These warnings are common when you use the UI if you're running a debug build or have "Debug executable"
-                // checked. You shouldn't be seeing them otherwise.
-                DebugMsg("BGMPlayThrough::BGMDeviceListenerProc: WARNING! Got kAudioDeviceProcessorOverload notification");
-                LogWarning("Background Music: CPU overload reported\n");
-                break;
-                
-            // Start playthrough when a client starts IO on BGMDevice and stop when BGMApp (i.e. playthrough itself) is
-            // the only client left doing IO.
-            //
-            // These cases are dispatched to avoid causing deadlocks by triggering one of the following notifications in
-            // the process of handling one. Deadlocks could happen if these were handled synchronously when:
-            //     - the first BGMDeviceListenerProc call takes the state mutex, then requests some data from the HAL and
-            //       waits for it to return,
-            //     - the request triggers the HAL to send notifications, which it sends on a different thread,
-            //     - the HAL waits for the second BGMDeviceListenerProc call to return before it returns the data
-            //       requested by the first BGMDeviceListenerProc call, and
-            //     - the second BGMDeviceListenerProc call waits for the first to unlock the state mutex.
-                
-            case kAudioDevicePropertyDeviceIsRunningSomewhere:
-                HandleBGMDeviceIsRunningSomewhere(refCon);
-                break;
-                
-            case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
-                HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp(refCon);
-                break;
-                
-            default:
-                // We might get properties we didn't ask for, so we just ignore them.
-                break;
-        }
-    }
-    
-    // From AudioHardware.h: "The return value is currently unused and should always be 0."
-    return 0;
-}
-
-// static
-void    BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere(BGMPlayThrough* refCon)
-{
-    // Note that kAudioDevicePropertyDeviceIsRunningSomewhere fires as soon as any client starts
-    // doing IO on BGMDevice. kAudioDevicePropertyDeviceIsRunning wouldn't work for this because
-    // it only fires when BGMApp's own IO procs start or stop.
-    //
-    // Either this notification or BGMXPCListener::startPlayThroughSyncWithReply will start
-    // playthrough, whichever we get first, in case one is faster than the other. It also allows
-    // playthrough to start even if BGMXPCHelper isn't working for some reason.
-    DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere: Got notification");
-    
-    // This is dispatched because it can block and
-    //   - we might be on a real-time thread, or
-    //   - BGMXPCListener::startPlayThroughSyncWithReply might get called on the same thread just
-    //     before this and time out waiting for this to run.
-    //
-    // TODO: We should find a way to do this without dispatching because dispatching isn't actually
-    //       real-time safe.
-    dispatch_async(BGMGetDispatchQueue_PriorityUserInteractive(), ^{
-        if(refCon->mActive)
-        {
-            CAMutex::Locker stateLocker(refCon->mStateMutex);
-            
-            // Set to true initially because if we fail to get this property from BGMDevice we want to
-            // try to start playthrough anyway.
-            bool isRunningSomewhere = true;
-            
-            BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunningSomewhere", [&]() {
-                AudioObjectPropertyAddress theAddress;
-                theAddress.mSelector = kAudioDevicePropertyDeviceIsRunningSomewhere;
-                theAddress.mScope = kAudioObjectPropertyScopeGlobal;
-                theAddress.mElement = kAudioObjectPropertyElementMain;
-                isRunningSomewhere = (refCon->mInputDevice.GetPropertyData_UInt32(theAddress) != 0);
-            });
-
-            DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunningSomewhere: "
-                     "BGMDevice is %srunning somewhere",
-                     isRunningSomewhere ? "" : "not ");
-            
-            if(isRunningSomewhere)
-            {
-                refCon->mToldOutputDeviceToStartAt = mach_absolute_time();
-
-                // TODO: Handle expected exceptions (mostly CAExceptions from PublicUtility classes) in Start.
-                //       For any that can't be handled sensibly in Start, catch them here and retry a few
-                //       times (with a very short delay) before handling them by showing an unobtrusive error
-                //       message or something. Then try a different device or just set the system device back
-                //       to the real device.
-                BGMLogAndSwallowExceptions("HandleBGMDeviceIsRunningSomewhere", [&refCon]() {
-                    refCon->Start();
-                });
-            }
-        }
-    });
-}
-
-// static
-void    BGMPlayThrough::HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp(BGMPlayThrough* refCon)
-{
-    DebugMsg("BGMPlayThrough::HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp: Got notification");
-    
-    // These notifications don't need to be handled quickly, so we can always dispatch.
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        // TODO: Handle expected exceptions (mostly CAExceptions from PublicUtility classes) in StopIfIdle.
-        BGMLogUnexpectedExceptions("HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp", [&refCon]() {
-            if(refCon->mActive)
-            {
-                refCon->StopIfIdle();
-            }
-        });
-    });
-}
+#pragma mark Helpers
 
 // static
 bool    BGMPlayThrough::IsRunningSomewhereOtherThanBGMApp(const BGMAudioDevice& inBGMDevice)
 {
-    auto type = inBGMDevice.GetPropertyData_CFType(kBGMRunningSomewhereOtherThanBGMAppAddress);
-    return type && CFBooleanGetValue(static_cast<CFBooleanRef>(type));
+    CFTypeRef type = inBGMDevice.GetPropertyData_CFType(kBGMRunningSomewhereOtherThanBGMAppAddress);
+
+    if(!type)
+    {
+        return false;
+    }
+
+    bool isRunning = false;
+
+    if(CFGetTypeID(type) == CFBooleanGetTypeID())
+    {
+        isRunning = CFBooleanGetValue(static_cast<CFBooleanRef>(type));
+    }
+    else
+    {
+        LogWarning("BGMPlayThrough::IsRunningSomewhereOtherThanBGMApp: Unexpected property type");
+    }
+
+    CFRelease(type);
+
+    return isRunning;
 }
 
 #pragma mark IOProcs

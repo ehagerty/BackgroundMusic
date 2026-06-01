@@ -17,7 +17,7 @@
 //  BGMAudioDeviceManager.mm
 //  BGMApp
 //
-//  Copyright © 2016-2018 Kyle Neideck
+//  Copyright © 2016-2018, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -37,9 +37,15 @@
 #import "CAAtomic.h"
 #import "CAAutoDisposer.h"
 #import "CAHALAudioSystemObject.h"
+#import "CAPropertyAddress.h"
 
 
 #pragma clang assume_nonnull begin
+
+static OSStatus BGMDeviceListenerProc(AudioObjectID inObjectID,
+                                      UInt32 inNumberAddresses,
+                                      const AudioObjectPropertyAddress* inAddresses,
+                                      void* __nullable inClientData);
 
 @implementation BGMAudioDeviceManager {
     // This ivar is a pointer so that BGMBackgroundMusicDevice's constructor doesn't get called
@@ -56,6 +62,8 @@
     BGMDeviceControlSync deviceControlSync;
     BGMPlayThrough playThrough;
     BGMPlayThrough playThrough_UISounds;
+
+    BOOL bgmDeviceListenersRegistered;
 
     // A connection to BGMXPCHelper so we can send it the ID of the output device.
     NSXPCConnection* __nullable bgmXPCHelperConnection;
@@ -75,6 +83,7 @@
         outputVolumeMenuItem = nil;
         outputDeviceMenuSection = nil;
         outputDevice = kAudioObjectUnknown;
+        bgmDeviceListenersRegistered = NO;
 
         try {
             bgmDevice = new BGMBackgroundMusicDevice;
@@ -83,14 +92,30 @@
             self = nil;
             return self;
         }
+
+        // Start listening for IO state changes on BGMDevice so we can start and stop playthrough.
+        // The handlers do nothing until an output device has been set.
+        [self registerBGMDeviceListeners];
     }
     
     return self;
 }
 
+// BGMAudioDeviceManager is a singleton and lives for the whole process. We still remove the
+// listeners and free bgmDevice here, so deallocating in a test (or if init fails) is safe.
+//
+// The listener proc's client data is an unretained pointer to the BGMAudioDeviceManager instance,
+// so it's not safe to deallocate it while the listeners are registered.
+// (The docs for AudioObjectRemovePropertyListener don't say whether it waits for in-flight
+// callbacks to finish, so even removing the listeners here wouldn't be fully safe.)
 - (void) dealloc {
+    BGMAssert(NSClassFromString(@"XCTestCase") != nil,  // Returns nil unless running in a test
+              "BGMAudioDeviceManager is not safe to destroy (except in unit tests).");
+
     @try {
         [stateLock lock];
+
+        [self removeBGMDeviceListeners];
 
         if (bgmDevice) {
             delete bgmDevice;
@@ -435,6 +460,233 @@
     return err;
 }
 
+#pragma mark BGMDevice Listeners
+
+// TODO: Listen for changes to the sample rate of the output device and update BGMDevice to match.
+
+// Register property listeners on BGMDevice and the UI sounds BGMDevice instance.
+//
+// Listeners are registered here, rather than by BGMPlayThrough, so the listener proc's client data
+// pointer always remains valid. BGMPlayThrough instances currently only get destroyed when BGMApp
+// is closing (I don't remember why, but we have exit-time C++ destructors enabled), so it's
+// unlikely to cause a crash, but this way is more correct and easier to understand.
+- (void) registerBGMDeviceListeners {
+    if (bgmDeviceListenersRegistered) {
+        return;
+    }
+
+    void* bridgeSelf = (__bridge void*)self;
+
+    auto addListeners = [&](AudioObjectID deviceID) {
+        BGMLogAndSwallowExceptions("BGMAudioDeviceManager::registerBGMDeviceListeners", [&] {
+            BGMAudioDevice device(deviceID);
+            device.AddPropertyListener(
+                    CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
+                    &BGMDeviceListenerProc, bridgeSelf);
+            device.AddPropertyListener(
+                    CAPropertyAddress(kAudioDeviceProcessorOverload),
+                    &BGMDeviceListenerProc, bridgeSelf);
+            device.AddPropertyListener(
+                    kBGMRunningSomewhereOtherThanBGMAppAddress,
+                    &BGMDeviceListenerProc, bridgeSelf);
+        });
+    };
+
+    addListeners(bgmDevice->GetObjectID());
+    addListeners(bgmDevice->GetUISoundsBGMDeviceInstance().GetObjectID());
+
+    bgmDeviceListenersRegistered = YES;
+}
+
+- (void) removeBGMDeviceListeners {
+    if (!bgmDeviceListenersRegistered) {
+        return;
+    }
+
+    void* bridgeSelf = (__bridge void*)self;
+
+    auto removeListeners = [&](AudioObjectID deviceID) {
+        // There's not much we can do if these calls throw. The docs for
+        // AudioObjectRemovePropertyListener just say that means it failed.
+        BGMLogAndSwallowExceptions("BGMAudioDeviceManager::removeBGMDeviceListeners", [&] {
+            BGMAudioDevice device(deviceID);
+            device.RemovePropertyListener(
+                    CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere),
+                    &BGMDeviceListenerProc, bridgeSelf);
+            device.RemovePropertyListener(
+                    CAPropertyAddress(kAudioDeviceProcessorOverload),
+                    &BGMDeviceListenerProc, bridgeSelf);
+            device.RemovePropertyListener(
+                    kBGMRunningSomewhereOtherThanBGMAppAddress,
+                    &BGMDeviceListenerProc, bridgeSelf);
+        });
+    };
+
+    removeListeners(bgmDevice->GetObjectID());
+    removeListeners(bgmDevice->GetUISoundsBGMDeviceInstance().GetObjectID());
+
+    bgmDeviceListenersRegistered = NO;
+}
+
+// Handles property change notifications from BGMDevice (and the UI sounds BGMDevice instance).
+- (void) handleBGMDeviceNotification:(AudioObjectID)inDeviceID
+                        numAddresses:(UInt32)inNumberAddresses
+                           addresses:(const AudioObjectPropertyAddress*)inAddresses {
+    BGMAssert(inDeviceID == bgmDevice->GetObjectID() ||
+              inDeviceID == bgmDevice->GetUISoundsBGMDeviceInstance().GetObjectID(),
+              "BGMAudioDeviceManager::handleBGMDeviceNotification: "
+              "Notified about an unexpected audio object (%u)",
+              inDeviceID);
+
+    for(UInt32 i = 0; i < inNumberAddresses; i++)
+    {
+        switch(inAddresses[i].mSelector)
+        {
+            case kAudioDeviceProcessorOverload:
+                // These warnings are common when you use the UI if you're running a debug build or
+                // have "Debug executable" checked. You shouldn't be seeing them otherwise.
+                DebugMsg("BGMAudioDeviceManager: WARNING! Got kAudioDeviceProcessorOverload "
+                         "notification for device %u",
+                         inDeviceID);
+                LogWarning("Background Music: CPU overload reported");
+                break;
+
+            // These cases are dispatched to avoid causing deadlocks by triggering one of the
+            // following notifications in the process of handling one. Deadlocks could happen if
+            // these were handled synchronously:
+            //     - a handler takes stateLock and requests some data from the HAL,
+            //     - the request makes the HAL send notifications, which it sends on a different
+            //       thread/queue,
+            //     - the second handler callback waits for stateLock, and
+            //     - the HAL waits for the second handler callback to return before returning the
+            //       data requested by the first one.
+
+            case kAudioDevicePropertyDeviceIsRunningSomewhere:
+                [self handleDeviceIsRunningSomewhere:inDeviceID];
+                break;
+
+            case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
+                [self handleDeviceIsRunningSomewhereOtherThanBGMApp:inDeviceID];
+                break;
+
+            default:
+                // We might get properties we didn't ask for, so we just ignore them.
+                break;
+        }
+    }
+}
+
+// Returns the BGMPlayThrough for the given BGMDevice instance.
+- (BGMPlayThrough&) playThroughForDeviceID:(AudioObjectID)inDeviceID {
+    return (inDeviceID == bgmDevice->GetUISoundsBGMDeviceInstance().GetObjectID()) ?
+            playThrough_UISounds : playThrough;
+}
+
+// Start playthrough when a client starts IO on BGMDevice.
+//
+// Note that kAudioDevicePropertyDeviceIsRunningSomewhere fires as soon as any client starts
+// doing IO on BGMDevice. kAudioDevicePropertyDeviceIsRunning wouldn't work for this because
+// it only fires when BGMApp's own IO procs start or stop.
+//
+// Either this notification or BGMXPCListener::startPlayThroughSyncWithReply will start
+// playthrough, whichever we get first, in case one is faster than the other. It also allows
+// playthrough to start even if BGMXPCHelper isn't working for some reason.
+- (void) handleDeviceIsRunningSomewhere:(AudioObjectID)inDeviceID {
+    DebugMsg("BGMAudioDeviceManager::handleDeviceIsRunningSomewhere: Got notification for "
+             "device %u",
+             inDeviceID);
+
+    // This is dispatched because it can block and BGMXPCListener::startPlayThroughSyncWithReply
+    // might get called on the same thread just before this and time out waiting for this to run.
+    //
+    // TODO: We should find a way to do this without dispatching because dispatching isn't actually
+    //       real-time safe.
+    dispatch_async(BGMGetDispatchQueue_PriorityUserInteractive(), ^{
+        @try {
+            [stateLock lock];
+
+            // Don't try to start playthrough before the output device has been set.
+            if (outputDevice.GetObjectID() == kAudioObjectUnknown) {
+                return;
+            }
+
+            BGMPlayThrough& pt = [self playThroughForDeviceID:inDeviceID];
+
+            // Default to true to try to start playthrough anyway if we fail to get this property
+            // from BGMDevice.
+            bool isRunningSomewhere = true;
+
+            BGMLogAndSwallowExceptions("handleDeviceIsRunningSomewhere", [&]() {
+                isRunningSomewhere =
+                        (BGMAudioDevice(inDeviceID).GetPropertyData_UInt32(
+                                CAPropertyAddress(kAudioDevicePropertyDeviceIsRunningSomewhere)) != 0);
+            });
+
+            DebugMsg("BGMAudioDeviceManager::handleDeviceIsRunningSomewhere: "
+                     "Device %u is %srunning somewhere",
+                     inDeviceID,
+                     isRunningSomewhere ? "" : "not ");
+
+            if(isRunningSomewhere)
+            {
+                // TODO: Handle expected exceptions (mostly CAExceptions from PublicUtility
+                //       classes) in Start. For any that can't be handled sensibly in Start,
+                //       catch them here and retry a few times (with a very short delay) before
+                //       handling them by showing an unobtrusive error message or something.
+                //       Then try a different device or just set the system device back to the
+                //       real device.
+                BGMLogAndSwallowExceptions("handleDeviceIsRunningSomewhere", [&]() {
+                    pt.Start();
+                });
+            }
+        } @finally {
+            [stateLock unlock];
+        }
+    });
+}
+
+// Stop playthrough when BGMApp is the only client left doing IO.
+//
+// We don't need a delay before stopping because BGMDriver only sends this notification after
+// non-BGMApp clients have been inactive for 2 seconds (see ClientsOtherThanBGMAppRunningIO in
+// BGM_Clients). That's enough time for BGMDriver to update
+// kAudioDeviceCustomPropertyDeviceAudibleState, which needs
+// kDeviceAudibleStateMinChangedFramesForUpdate frames. That's about 0.1 to 0.5 s, depending on
+// sample rate.
+//
+// If we change BGMDevice so that BGMApp's IO stops before the audible state can update, e.g. by
+// splitting out the input stream to a separate device or replacing it with shared memory, we'll
+// need to make BGMDriver update the audible state when IO stops.
+// TODO: We should probably do that either way if it's simple enough. It's less error prone.
+- (void) handleDeviceIsRunningSomewhereOtherThanBGMApp:(AudioObjectID)inDeviceID {
+    DebugMsg("BGMAudioDeviceManager::handleDeviceIsRunningSomewhereOtherThanBGMApp: "
+             "Got notification for device %u",
+             inDeviceID);
+
+    // Dispatched so we can take stateLock without risking deadlock.
+    // Stopping playthrough doesn't need to be done quickly, so default priority is fine. And it
+    // doesn't need to be done on the same thread as starting because we only stop if idle.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @try {
+            [stateLock lock];
+
+            if (outputDevice.GetObjectID() == kAudioObjectUnknown) {
+                return;
+            }
+
+            BGMPlayThrough& pt = [self playThroughForDeviceID:inDeviceID];
+
+            // TODO: Handle expected exceptions (mostly CAExceptions from PublicUtility
+            //       classes) in StopIfIdle.
+            BGMLogUnexpectedExceptions("handleDeviceIsRunningSomewhereOtherThanBGMApp", [&]() {
+                pt.StopIfIdle();
+            });
+        } @finally {
+            [stateLock unlock];
+        }
+    });
+}
+
 #pragma mark BGMXPCHelper Communication
 
 - (void) setBGMXPCHelperConnection:(NSXPCConnection* __nullable)connection {
@@ -461,6 +713,23 @@
 }
 
 @end
+
+// static
+OSStatus    BGMDeviceListenerProc(AudioObjectID inObjectID,
+                                  UInt32 inNumberAddresses,
+                                  const AudioObjectPropertyAddress* inAddresses,
+                                  void* __nullable inClientData)
+{
+    // TODO: For kAudioDeviceProcessorOverload, the HAL can call this synchronously on a real-time
+    //       (IO) thread, and Objective-C message sends aren't real-time safe. (The other properties
+    //       we listen for aren't delivered on the IO thread.)
+    BGMAudioDeviceManager* manager = (__bridge BGMAudioDeviceManager*)inClientData;
+    [manager handleBGMDeviceNotification:inObjectID
+                            numAddresses:inNumberAddresses
+                               addresses:inAddresses];
+    // From AudioHardware.h: "The return value is currently unused and should always be 0."
+    return 0;
+}
 
 #pragma clang assume_nonnull end
 

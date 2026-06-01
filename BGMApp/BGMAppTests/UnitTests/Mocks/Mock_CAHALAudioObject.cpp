@@ -17,7 +17,7 @@
 //  Mock_CAHALAudioObject.cpp
 //  BGMAppUnitTests
 //
-//  Copyright © 2016, 2020 Kyle Neideck
+//  Copyright © 2016, 2020, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -74,6 +74,11 @@ void	CAHALAudioObject::GetPropertyData(const AudioObjectPropertyAddress& inAddre
 
         case kAudioDevicePropertyDeviceIsAlive:
             *reinterpret_cast<UInt32*>(outData) = 1;
+            break;
+
+        case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
+            *reinterpret_cast<CFTypeRef*>(outData) =
+                    MockAudioObjects::GetAudioDevice(GetObjectID())->GetRunningSomewhereOtherThanBGMAppProperty();
             break;
 
         case kAudioStreamPropertyVirtualFormat:

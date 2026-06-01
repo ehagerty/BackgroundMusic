@@ -17,7 +17,7 @@
 //  BGMPlayThroughTests.mm
 //  BGMAppUnitTests
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 
 // Unit Include
@@ -41,6 +41,26 @@
 @interface BGMPlayThroughTests : XCTestCase
 
 @end
+
+// Friend of BGMPlayThrough so the tests can reach its private members.
+class BGMPlayThroughTestAccess
+{
+public:
+    static bool IsRunningSomewhereOtherThanBGMApp(const BGMAudioDevice& inBGMDevice)
+    {
+        return BGMPlayThrough::IsRunningSomewhereOtherThanBGMApp(inBGMDevice);
+    }
+
+    static bool IsActive(const BGMPlayThrough& inPlayThrough)
+    {
+        return inPlayThrough.mActive;
+    }
+
+    static bool IsPlayingThrough(const BGMPlayThrough& inPlayThrough)
+    {
+        return inPlayThrough.mPlayingThrough;
+    }
+};
 
 @implementation BGMPlayThroughTests {
     BGMAudioDevice inputDevice;
@@ -82,24 +102,27 @@
     XCTAssertEqual(12345.0, inputDevice.GetNominalSampleRate());
     XCTAssertEqual(123, inputDevice.GetIOBufferSize());
 
-    // It should add the property listeners it needs.
-    std::set<AudioObjectPropertySelector> expectedProperties {
-            kAudioDevicePropertyDeviceIsRunningSomewhere,
-            kAudioDeviceProcessorOverload,
-            kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp
-    };
-
-    XCTAssertEqual(expectedProperties, mockInputDevice->mPropertiesWithListeners);
+    // Property notifications come through BGMAudioDeviceManager, so we don't expect BGMPlayThrough to register any listeners.
+    XCTAssert(mockInputDevice->mPropertiesWithListeners.empty());
 }
 
 - (void) testDeactivate {
     BGMPlayThrough playThrough(inputDevice, outputDevice);
 
     playThrough.Activate();
+    XCTAssertTrue(BGMPlayThroughTestAccess::IsActive(playThrough));
+
     playThrough.Deactivate();
 
-    // It should remove the property listeners added by Activate.
-    XCTAssert(mockInputDevice->mPropertiesWithListeners.empty());
+    // Deactivate stops playthrough and tears down the IOProcs.
+    XCTAssertFalse(BGMPlayThroughTestAccess::IsActive(playThrough));
+    XCTAssertFalse(BGMPlayThroughTestAccess::IsPlayingThrough(playThrough));
+}
+
+- (void) testIsRunningSomewhereOtherThanBGMApp_WrongCFTypeReturnsFalse {
+    mockInputDevice->SetRunningSomewhereOtherThanBGMAppProperty(CFSTR("not a boolean"));
+
+    XCTAssertFalse(BGMPlayThroughTestAccess::IsRunningSomewhereOtherThanBGMApp(inputDevice));
 }
 
 @end

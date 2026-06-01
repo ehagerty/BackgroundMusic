@@ -17,7 +17,7 @@
 //  BGMPlayThrough.h
 //  BGMApp
 //
-//  Copyright © 2016, 2017, 2020 Kyle Neideck
+//  Copyright © 2016, 2017, 2020, 2026 Kyle Neideck
 //
 //  Reads audio from an input device and immediately writes it to an output device. We currently use this class with the input
 //  device always set to BGMDevice and the output device set to the one selected in the preferences menu.
@@ -129,14 +129,10 @@ public:
     
 private:
     
-    static OSStatus     BGMDeviceListenerProc(AudioObjectID inObjectID,
-                                              UInt32 inNumberAddresses,
-                                              const AudioObjectPropertyAddress* inAddresses,
-                                              void* __nullable inClientData);
-    static void         HandleBGMDeviceIsRunningSomewhere(BGMPlayThrough* refCon);
-    static void         HandleBGMDeviceIsRunningSomewhereOtherThanBGMApp(BGMPlayThrough* refCon);
-    
     static bool         IsRunningSomewhereOtherThanBGMApp(const BGMAudioDevice& inBGMDevice);
+
+    // This lets the unit tests access the private members.
+    friend class BGMPlayThroughTestAccess;
 
     static OSStatus     InputDeviceIOProc(AudioObjectID           inDevice,
                                           const AudioTimeStamp*   inNow,
@@ -203,8 +199,6 @@ private:
     
     bool                mActive = false;
     bool                mPlayingThrough = false;
-
-    UInt64              mLastNotifiedIOStoppedOnBGMDevice { 0 };
 
     std::atomic<IOState>    mInputDeviceIOProcState { IOState::Stopped };
     std::atomic<IOState>    mOutputDeviceIOProcState { IOState::Stopped };

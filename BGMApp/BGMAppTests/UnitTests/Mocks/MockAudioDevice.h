@@ -17,7 +17,7 @@
 //  MockAudioObject.h
 //  BGMAppUnitTests
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 
 #ifndef BGMAppUnitTests__MockAudioDevice
@@ -44,6 +44,7 @@ class MockAudioDevice
 
 public:
     MockAudioDevice(const std::string& inUID);
+    ~MockAudioDevice() override;
 
     /*!
      * @return This device's music player bundle ID property.
@@ -57,6 +58,14 @@ public:
     void SetPlayerBundleID(const CACFString& inPlayerBundleID);
 
     /*!
+     * @return This device's kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp
+     *         property.
+     */
+    CFTypeRef __nonnull GetRunningSomewhereOtherThanBGMAppProperty() const;
+    /*! Set this device's kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp property. */
+    void SetRunningSomewhereOtherThanBGMAppProperty(CFTypeRef __nonnull inValue);
+
+    /*!
      * The device's UID. The UID is a persistent token used to identify a particular audio device
      * across boot sessions.
      */
@@ -66,6 +75,7 @@ public:
 
 private:
     CACFString mPlayerBundleID { "" };
+    CFTypeRef __nonnull mRunningSomewhereOtherThanBGMApp { kCFBooleanFalse };
 
 };
 
