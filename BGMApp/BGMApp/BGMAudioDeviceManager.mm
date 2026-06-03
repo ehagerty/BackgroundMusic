@@ -404,6 +404,9 @@ static OSStatus BGMDeviceListenerProc(AudioObjectID inObjectID,
     @try {
         gotLock = [stateLock tryLock];
 
+        // TODO: It's not worth keeping the tryLock path just for macOS older than 11. We should
+        //       delete it and rename this method to startPlayThrough. If CoreAudio ever makes it
+        //       possible to block StartIO until another device starts again, we can bring it back.
         BOOL isBigSur = NO;
         if (@available(macOS 11.0, *)) {
             isBigSur = YES;
@@ -461,6 +464,9 @@ static OSStatus BGMDeviceListenerProc(AudioObjectID inObjectID,
 }
 
 #pragma mark BGMDevice Listeners
+
+// TODO: This class is too big and has too many responsibilities. We should extract the playthrough
+//       listeners (or a playthrough controller) into a new class.
 
 // TODO: Listen for changes to the sample rate of the output device and update BGMDevice to match.
 
@@ -598,9 +604,6 @@ static OSStatus BGMDeviceListenerProc(AudioObjectID inObjectID,
 
     // This is dispatched because it can block and BGMXPCListener::startPlayThroughSyncWithReply
     // might get called on the same thread just before this and time out waiting for this to run.
-    //
-    // TODO: We should find a way to do this without dispatching because dispatching isn't actually
-    //       real-time safe.
     dispatch_async(BGMGetDispatchQueue_PriorityUserInteractive(), ^{
         @try {
             [stateLock lock];
