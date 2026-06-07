@@ -28,6 +28,7 @@
 #include "BGM_Utils.h"
 
 // PublicUtility Includes
+#include "CAAutoDisposer.h"
 #include "CAHALAudioSystemObject.h"
 #include "CAPropertyAddress.h"
 
@@ -217,6 +218,37 @@ void    BGMPlayThrough::DeallocateBuffer()
     mBuffer = nullptr;  // Note that the buffer's destructor will deallocate it.
 }
 
+// static
+void    BGMPlayThrough::DisableIOProcStreams(BGMAudioDevice& inDevice,
+                                             AudioDeviceIOProcID inIOProcID,
+                                             bool inIsInput,
+                                             const char* inDeviceName)
+{
+    BGMLogAndSwallowExceptions("BGMPlayThrough::DisableIOProcStreams", [&] {
+        UInt32 numStreams = inDevice.GetNumberStreams(inIsInput);
+
+        if(numStreams == 0)
+        {
+            // Nothing to do.
+            return;
+        }
+
+        // Turn every stream in this direction off for our IOProc. The HAL then passes our IOProc a
+        // NULL buffer for each of them (which it ignores).
+        CAAutoArrayDelete<bool> streamUsage(numStreams);
+
+        for(UInt32 i = 0; i < numStreams; i++)
+        {
+            streamUsage[i] = false;
+        }
+
+        inDevice.SetIOProcStreamUsage(inIOProcID, inIsInput, streamUsage);
+
+        DebugMsg("BGMPlayThrough::DisableIOProcStreams: Disabled %u %s stream(s) on the %s device",
+                 numStreams, (inIsInput ? "input" : "output"), inDeviceName);
+    });
+}
+
 void    BGMPlayThrough::CreateIOProcIDs()
 {
     CAMutex::Locker stateLocker(mStateMutex);
@@ -266,6 +298,17 @@ void    BGMPlayThrough::CreateIOProcIDs()
             LogError("BGMPlayThrough::CreateIOProcIDs: Null IOProc ID returned by CreateIOProcID");
             throw CAException(kAudioHardwareIllegalOperationError);
         }
+
+        // Tell the HAL which streams our IOProcs actually use, so it won't engage streams we don't
+        // use.
+        // 
+        // OutputDeviceIOProc only writes audio, so disable the output device's input streams. With
+        // a headset, for example, that avoids opening the mic input, which we think might help
+        // avoid issues with Bluetooth headsets. See #859.
+        DisableIOProcStreams(mOutputDevice, mOutputDeviceIOProcID, /* inIsInput = */ true, "output");
+
+        // InputDeviceIOProc only captures, so disable BGMDevice's output streams.
+        DisableIOProcStreams(mInputDevice, mInputDeviceIOProcID, /* inIsInput = */ false, "input");
         
         // TODO: Try using SetIOCycleUsage to reduce latency? Our IOProcs don't really do anything except copy a small
         //       buffer. According to this, Jack OS X considered it:

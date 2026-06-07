@@ -17,7 +17,7 @@
 //  MockAudioObjects.cpp
 //  BGMAppUnitTests
 //
-//  Copyright © 2020, 2025 Kyle Neideck
+//  Copyright © 2020, 2025, 2026 Kyle Neideck
 //
 
 // Self Include
@@ -27,8 +27,18 @@
 #include "CACFString.h"
 
 // STL Includes
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
+
+[[noreturn]] void Mock_Unimplemented(const char* inMethod)
+{
+    fprintf(stderr, "BGMAppUnitTests: reached an unimplemented mock method: %s\n", inMethod);
+    // abort instead of throwing because the code under test swallows all exceptions (catch(...))
+    // in places.
+    abort();
+}
 
 // static
 MockAudioObjects::MockDeviceMap MockAudioObjects::sDevices;

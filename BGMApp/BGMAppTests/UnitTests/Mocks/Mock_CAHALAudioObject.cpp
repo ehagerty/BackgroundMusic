@@ -98,7 +98,7 @@ void	CAHALAudioObject::GetPropertyData(const AudioObjectPropertyAddress& inAddre
         }
 
         default:
-            Throw(new CAException(kAudio_UnimplementedError));
+            Mock_Unimplemented(__PRETTY_FUNCTION__);
     }
 }
 
@@ -123,7 +123,7 @@ UInt32	CAHALAudioObject::GetPropertyDataSize(const AudioObjectPropertyAddress& i
             return (inAddress.mScope == kAudioObjectPropertyScopeGlobal ? 2 : 1) *
                     sizeof(AudioObjectID);
         default:
-            Throw(new CAException(kAudio_UnimplementedError));
+            Mock_Unimplemented(__PRETTY_FUNCTION__);
     }
 }
 
@@ -143,76 +143,76 @@ void	CAHALAudioObject::RemovePropertyListener(const AudioObjectPropertyAddress& 
 
 void	CAHALAudioObject::SetObjectID(AudioObjectID inObjectID)
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioClassID	CAHALAudioObject::GetClassID() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioObjectID	CAHALAudioObject::GetOwnerObjectID() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyOwningPlugInBundleID() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyName() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyManufacturer() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyNameForElement(AudioObjectPropertyScope inScope, AudioObjectPropertyElement inElement) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyCategoryNameForElement(AudioObjectPropertyScope inScope, AudioObjectPropertyElement inElement) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 CFStringRef	CAHALAudioObject::CopyNumberNameForElement(AudioObjectPropertyScope inScope, AudioObjectPropertyElement inElement) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 bool	CAHALAudioObject::ObjectExists(AudioObjectID inObjectID)
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 UInt32	CAHALAudioObject::GetNumberOwnedObjects(AudioClassID inClass) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 void	CAHALAudioObject::GetAllOwnedObjects(AudioClassID inClass, UInt32& ioNumberObjects, AudioObjectID* ioObjectIDs) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioObjectID	CAHALAudioObject::GetOwnedObjectByIndex(AudioClassID inClass, UInt32 inIndex)
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 bool	CAHALAudioObject::HasProperty(const AudioObjectPropertyAddress& inAddress) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 bool	CAHALAudioObject::IsPropertySettable(const AudioObjectPropertyAddress& inAddress) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 

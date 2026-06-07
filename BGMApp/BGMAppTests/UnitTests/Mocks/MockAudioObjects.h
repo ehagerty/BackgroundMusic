@@ -17,7 +17,7 @@
 //  MockAudioObjects.h
 //  BGMAppUnitTests
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 
 #ifndef BGMAppUnitTests__MockAudioObjects
@@ -34,6 +34,10 @@
 
 // System Includes
 #include <CoreAudio/CoreAudio.h>
+
+
+// Fails the current test by aborting. The mocks call this for the methods they don't implement.
+[[noreturn]] void Mock_Unimplemented(const char* inMethod);
 
 
 class MockAudioObjects

@@ -149,6 +149,14 @@ private:
                                            const AudioTimeStamp*   inOutputTime,
                                            void* __nullable        inClientData);
 
+    // Tells the HAL that our IOProc on inDevice doesn't use the streams in one direction, so it
+    // won't engage them. inIsInput picks the direction to disable: true disables the input streams,
+    // false disables the output streams.
+    static void         DisableIOProcStreams(BGMAudioDevice& inDevice,
+                                             AudioDeviceIOProcID inIOProcID,
+                                             bool inIsInput,
+                                             const char* inDeviceName);
+
     /*! Fills the given ABL with zeroes to make it silent. */
     static inline void  FillWithSilence(AudioBufferList* ioBuffer);
 

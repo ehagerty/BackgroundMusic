@@ -17,7 +17,7 @@
 //  Mock_CAHALAudioSystemObject.cpp
 //  BGMAppUnitTests
 //
-//  Copyright © 2017, 2020 Kyle Neideck
+//  Copyright © 2017, 2020, 2026 Kyle Neideck
 //
 
 // Self include
@@ -58,36 +58,36 @@ AudioObjectID	CAHALAudioSystemObject::GetAudioDeviceForUID(CFStringRef inUID) co
 
 UInt32	CAHALAudioSystemObject::GetNumberAudioDevices() const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 void	CAHALAudioSystemObject::GetAudioDevices(UInt32& ioNumberAudioDevices, AudioObjectID* outAudioDevices) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioObjectID	CAHALAudioSystemObject::GetAudioDeviceAtIndex(UInt32 inIndex) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 void	CAHALAudioSystemObject::LogBasicDeviceInfo()
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioObjectID	CAHALAudioSystemObject::GetDefaultAudioDevice(bool inIsInput, bool inIsSystem) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 void	CAHALAudioSystemObject::SetDefaultAudioDevice(bool inIsInput, bool inIsSystem, AudioObjectID inNewDefaultDevice)
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
 AudioObjectID	CAHALAudioSystemObject::GetAudioPlugInForBundleID(CFStringRef inUID) const
 {
-    Throw(new CAException(kAudio_UnimplementedError));
+    Mock_Unimplemented(__PRETTY_FUNCTION__);
 }
 
