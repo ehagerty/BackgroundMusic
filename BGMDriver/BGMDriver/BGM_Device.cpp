@@ -43,6 +43,7 @@
 #include "CACFDictionary.h"
 #include "CACFString.h"
 #include "CADebugMacros.h"
+#include "BGMDebugLogging.h"
 #include "CAHostTimeBase.h"
 
 // STL Includes
@@ -323,6 +324,7 @@ bool	BGM_Device::Device_HasProperty(AudioObjectID inObjectID, pid_t inClientPID,
         case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
         case kAudioDeviceCustomPropertyAppVolumes:
         case kAudioDeviceCustomPropertyEnabledOutputControls:
+        case kAudioDeviceCustomPropertyDebugLoggingEnabled:
 			theAnswer = true;
 			break;
 			
@@ -370,6 +372,7 @@ bool	BGM_Device::Device_IsPropertySettable(AudioObjectID inObjectID, pid_t inCli
         case kAudioDeviceCustomPropertyMusicPlayerBundleID:
         case kAudioDeviceCustomPropertyAppVolumes:
         case kAudioDeviceCustomPropertyEnabledOutputControls:
+        case kAudioDeviceCustomPropertyDebugLoggingEnabled:
 			theAnswer = true;
 			break;
 		
@@ -456,7 +459,7 @@ UInt32	BGM_Device::Device_GetPropertyDataSize(AudioObjectID inObjectID, pid_t in
             break;
             
         case kAudioObjectPropertyCustomPropertyInfoList:
-            theAnswer = sizeof(AudioServerPlugInCustomPropertyInfo) * 6;
+            theAnswer = sizeof(AudioServerPlugInCustomPropertyInfo) * 7;
             break;
             
         case kAudioDeviceCustomPropertyDeviceAudibleState:
@@ -481,6 +484,10 @@ UInt32	BGM_Device::Device_GetPropertyDataSize(AudioObjectID inObjectID, pid_t in
 
         case kAudioDeviceCustomPropertyEnabledOutputControls:
             theAnswer = sizeof(CFArrayRef);
+            break;
+
+        case kAudioDeviceCustomPropertyDebugLoggingEnabled:
+            theAnswer = sizeof(CFBooleanRef);
             break;
 		
 		default:
@@ -883,9 +890,9 @@ void	BGM_Device::Device_GetPropertyData(AudioObjectID inObjectID, pid_t inClient
             theNumberItemsToFetch = inDataSize / sizeof(AudioServerPlugInCustomPropertyInfo);
             
             //	clamp it to the number of items we have
-            if(theNumberItemsToFetch > 6)
+            if(theNumberItemsToFetch > 7)
             {
-                theNumberItemsToFetch = 6;
+                theNumberItemsToFetch = 7;
             }
             
             if(theNumberItemsToFetch > 0)
@@ -923,6 +930,12 @@ void	BGM_Device::Device_GetPropertyData(AudioObjectID inObjectID, pid_t inClient
                 ((AudioServerPlugInCustomPropertyInfo*)outData)[5].mSelector = kAudioDeviceCustomPropertyEnabledOutputControls;
                 ((AudioServerPlugInCustomPropertyInfo*)outData)[5].mPropertyDataType = kAudioServerPlugInCustomPropertyDataTypeCFPropertyList;
                 ((AudioServerPlugInCustomPropertyInfo*)outData)[5].mQualifierDataType = kAudioServerPlugInCustomPropertyDataTypeNone;
+            }
+            if(theNumberItemsToFetch > 6)
+            {
+                ((AudioServerPlugInCustomPropertyInfo*)outData)[6].mSelector = kAudioDeviceCustomPropertyDebugLoggingEnabled;
+                ((AudioServerPlugInCustomPropertyInfo*)outData)[6].mPropertyDataType = kAudioServerPlugInCustomPropertyDataTypeCFPropertyList;
+                ((AudioServerPlugInCustomPropertyInfo*)outData)[6].mQualifierDataType = kAudioServerPlugInCustomPropertyDataTypeNone;
             }
 
             outDataSize = theNumberItemsToFetch * sizeof(AudioServerPlugInCustomPropertyInfo);
@@ -962,6 +975,12 @@ void	BGM_Device::Device_GetPropertyData(AudioObjectID inObjectID, pid_t inClient
         case kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp:
             ThrowIf(inDataSize < sizeof(CFBooleanRef), CAException(kAudioHardwareBadPropertySizeError), "BGM_Device::Device_GetPropertyData: not enough space for the return value of kAudioDeviceCustomPropertyDeviceIsRunningSomewhereOtherThanBGMApp for the device");
             *reinterpret_cast<CFBooleanRef*>(outData) = mClients.ClientsOtherThanBGMAppRunningIO() ? kCFBooleanTrue : kCFBooleanFalse;
+            outDataSize = sizeof(CFBooleanRef);
+            break;
+
+        case kAudioDeviceCustomPropertyDebugLoggingEnabled:
+            ThrowIf(inDataSize < sizeof(CFBooleanRef), CAException(kAudioHardwareBadPropertySizeError), "BGM_Device::Device_GetPropertyData: not enough space for the return value of kAudioDeviceCustomPropertyDebugLoggingEnabled for the device");
+            *reinterpret_cast<CFBooleanRef*>(outData) = BGMDebugLoggingIsEnabled() ? kCFBooleanTrue : kCFBooleanFalse;
             outDataSize = sizeof(CFBooleanRef);
             break;
             
@@ -1223,6 +1242,46 @@ void	BGM_Device::Device_SetPropertyData(AudioObjectID inObjectID, pid_t inClient
                         "kAudioDeviceCustomPropertyEnabledOutputControls");
 
                 RequestEnabledControls(theVolumeControlEnabled, theMuteControlEnabled);
+            }
+            break;
+
+        case kAudioDeviceCustomPropertyDebugLoggingEnabled:
+            {
+                ThrowIf(inDataSize < sizeof(CFBooleanRef),
+                        CAException(kAudioHardwareBadPropertySizeError),
+                        "BGM_Device::Device_SetPropertyData: wrong size for the data for "
+                        "kAudioDeviceCustomPropertyDebugLoggingEnabled");
+
+                CFBooleanRef theEnabledRef = *reinterpret_cast<const CFBooleanRef*>(inData);
+
+                ThrowIfNULL(theEnabledRef,
+                            CAException(kAudioHardwareIllegalOperationError),
+                            "BGM_Device::Device_SetPropertyData: null reference given for "
+                            "kAudioDeviceCustomPropertyDebugLoggingEnabled");
+                ThrowIf(CFGetTypeID(theEnabledRef) != CFBooleanGetTypeID(),
+                        CAException(kAudioHardwareIllegalOperationError),
+                        "BGM_Device::Device_SetPropertyData: CFType given for "
+                        "kAudioDeviceCustomPropertyDebugLoggingEnabled was not a CFBoolean");
+
+                bool theEnabled = CFBooleanGetValue(theEnabledRef);
+
+                // gDebugLoggingIsEnabled is read on the IO threads without locking (see
+                // BGMDebugLogging.h), so there's nothing to lock around here.
+                bool propertyWasChanged = (static_cast<bool>(BGMDebugLoggingIsEnabled()) != theEnabled);
+
+                BGMSetDebugLoggingEnabled(theEnabled);
+
+                DebugMsg("BGM_Device::Device_SetPropertyData: Debug logging %s",
+                         theEnabled ? "enabled" : "disabled");
+
+                if(propertyWasChanged)
+                {
+                    // Send notification
+                    CADispatchQueue::GetGlobalSerialQueue().Dispatch(false,	^{
+                        AudioObjectPropertyAddress theChangedProperties[] = { kBGMDebugLoggingEnabledAddress };
+                        BGM_PlugIn::Host_PropertiesChanged(inObjectID, 1, theChangedProperties);
+                    });
+                }
             }
             break;
 

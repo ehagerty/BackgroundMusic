@@ -17,7 +17,7 @@
 //  BGMAppDelegate.mm
 //  BGMApp
 //
-//  Copyright © 2016-2022 Kyle Neideck
+//  Copyright © 2016-2022, 2026 Kyle Neideck
 //  Copyright © 2021 Marcus Wu
 //
 
@@ -30,6 +30,7 @@
 #import "BGMAppVolumesController.h"
 #import "BGMAutoPauseMusic.h"
 #import "BGMAutoPauseMenuItem.h"
+#import "BGMDebugLogging.h"
 #import "BGMDebugLoggingMenuItem.h"
 #import "BGMMusicPlayers.h"
 #import "BGMOutputDeviceMenuSection.h"
@@ -92,6 +93,12 @@ static NSString* const kOptShowDockIcon      = @"--show-dock-icon";
     if (![self initAudioDeviceManager]) {
         return;
     }
+
+    // Set debug logging enabled/disabled to match BGMDriver. Do this early, so we can get debug
+    // logs while BGMApp is launching.
+    BGMLogAndSwallowExceptions("BGMAppDelegate::awakeFromNib", [&] {
+        BGMSetDebugLoggingEnabled([audioDevices bgmDevice].GetDebugLoggingEnabled());
+    });
 
     // Stored user settings
     userDefaults = [self createUserDefaults];
@@ -323,7 +330,8 @@ static NSString* const kOptShowDockIcon      = @"--show-dock-icon";
 
     // Enable/disable debug logging. Hidden unless you option-click the status bar icon.
     debugLoggingMenuItem =
-        [[BGMDebugLoggingMenuItem alloc] initWithMenuItem:self.debugLoggingMenuItemUnwrapped];
+        [[BGMDebugLoggingMenuItem alloc] initWithMenuItem:self.debugLoggingMenuItemUnwrapped
+                                             audioDevices:audioDevices];
     [statusBarItem setDebugLoggingMenuItem:debugLoggingMenuItem];
 
     // Handle events about the main menu. (See the NSMenuDelegate methods below.)

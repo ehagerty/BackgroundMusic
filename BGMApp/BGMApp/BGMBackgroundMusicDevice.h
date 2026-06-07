@@ -180,6 +180,25 @@ public:
     virtual void        SetMusicPlayerBundleID(CFStringRef inBundleID) {
                             SetPropertyData_CFString(kBGMMusicPlayerBundleIDAddress, inBundleID); }
 
+#pragma mark Debug Logging
+
+public:
+    /*!
+     @return True if debug logging is currently enabled in BGMDriver.
+     @throws CAException If the HAL returns an error or a non-boolean value.
+     @see kAudioDeviceCustomPropertyDebugLoggingEnabled in BGM_Types.h.
+     */
+    bool                GetDebugLoggingEnabled() const;
+    /*!
+     Enable or disable debug logging in BGMDriver.
+
+     @throws CAException If the HAL returns an error.
+     @see kAudioDeviceCustomPropertyDebugLoggingEnabled in BGM_Types.h.
+     */
+    void                SetDebugLoggingEnabled(bool inEnabled) {
+                            SetPropertyData_CFType(kBGMDebugLoggingEnabledAddress,
+                                                   inEnabled ? kCFBooleanTrue : kCFBooleanFalse); }
+
 #pragma mark UI Sounds Instance
 
 public:

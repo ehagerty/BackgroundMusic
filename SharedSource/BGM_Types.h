@@ -121,7 +121,9 @@ enum
     kAudioDeviceCustomPropertyAppVolumes                              = 'apvs',
     // A CFArray of CFBooleans indicating which of BGMDevice's controls are enabled. All controls are enabled
     // by default. This property is settable. See the array indices below for more info.
-    kAudioDeviceCustomPropertyEnabledOutputControls                   = 'bgct'
+    kAudioDeviceCustomPropertyEnabledOutputControls                   = 'bgct',
+    // A CFBoolean. True if debug logging is enabled in BGMDriver. Settable.
+    kAudioDeviceCustomPropertyDebugLoggingEnabled                     = 'dblg'
 };
 
 // The number of silent/audible frames before BGMDriver will change kAudioDeviceCustomPropertyDeviceAudibleState
@@ -212,6 +214,12 @@ static const AudioObjectPropertyAddress kBGMAppVolumesAddress = {
 static const AudioObjectPropertyAddress kBGMEnabledOutputControlsAddress = {
     kAudioDeviceCustomPropertyEnabledOutputControls,
     kAudioObjectPropertyScopeOutput,
+    kAudioObjectPropertyElementMain
+};
+
+static const AudioObjectPropertyAddress kBGMDebugLoggingEnabledAddress = {
+    kAudioDeviceCustomPropertyDebugLoggingEnabled,
+    kAudioObjectPropertyScopeGlobal,
     kAudioObjectPropertyElementMain
 };
 

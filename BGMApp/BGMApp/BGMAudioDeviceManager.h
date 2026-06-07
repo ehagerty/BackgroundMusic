@@ -17,7 +17,7 @@
 //  BGMAudioDeviceManager.h
 //  BGMApp
 //
-//  Copyright © 2016-2018 Kyle Neideck
+//  Copyright © 2016-2018, 2026 Kyle Neideck
 //
 //  Manages BGMDevice and the output device. Sets the system's current default device as the output
 //  device on init, then starts playthrough and mirroring the devices' controls.

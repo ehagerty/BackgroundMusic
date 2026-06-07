@@ -155,9 +155,9 @@
 		1CD989581ECFFD250014BBBF /* CAMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1C1963041BCAF468008A4DF7 /* CAMutex.cpp */; };
 		1CD989591ECFFD250014BBBF /* CAPThread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1C8034C21BDAFD5700668E00 /* CAPThread.cpp */; };
 		1CD9895A1ECFFD250014BBBF /* CARingBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1C1962E21BC94E15008A4DF7 /* CARingBuffer.cpp */; };
-		1CE03A57239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.m */; settings = {COMPILER_FLAGS = "-frandom-seed=BGMApp-BGMDebugLoggingMenuItem.m"; }; };
-		1CE03A58239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.m */; };
-		1CE03A59239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.m */; };
+		1CE03A57239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.mm */; settings = {COMPILER_FLAGS = "-frandom-seed=BGMApp-BGMDebugLoggingMenuItem.mm"; }; };
+		1CE03A58239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.mm */; };
+		1CE03A59239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.mm */; };
 		1CE7064C1BF1EC0600BFC06D /* BGMOutputDeviceMenuSection.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CE7064B1BF1EC0600BFC06D /* BGMOutputDeviceMenuSection.mm */; settings = {COMPILER_FLAGS = "-frandom-seed=BGMApp-BGMOutputDeviceMenuSection.mm"; }; };
 		1CED61691C3081C2002CAFCF /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 1CED61681C3081C2002CAFCF /* LICENSE */; };
 		1CED616C1C316E1A002CAFCF /* BGMAudioDeviceManager.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CED616B1C316E1A002CAFCF /* BGMAudioDeviceManager.mm */; settings = {COMPILER_FLAGS = "-frandom-seed=BGMApp-BGMAudioDeviceManager.mm"; }; };
@@ -377,7 +377,7 @@
 		1CD410D31F9EDDAD0070A094 /* BGMAppVolumesController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = BGMAppVolumesController.mm; sourceTree = "<group>"; };
 		1CDE224022CBB95B0008E3AC /* Music.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Music.h; path = "Music Players/Music.h"; sourceTree = "<group>"; };
 		1CE03A55239B56740036908D /* BGMDebugLoggingMenuItem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BGMDebugLoggingMenuItem.h; sourceTree = "<group>"; };
-		1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BGMDebugLoggingMenuItem.m; sourceTree = "<group>"; };
+		1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = BGMDebugLoggingMenuItem.mm; sourceTree = "<group>"; };
 		1CE7064A1BF1EC0600BFC06D /* BGMOutputDeviceMenuSection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BGMOutputDeviceMenuSection.h; sourceTree = "<group>"; };
 		1CE7064B1BF1EC0600BFC06D /* BGMOutputDeviceMenuSection.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = BGMOutputDeviceMenuSection.mm; sourceTree = "<group>"; };
 		1CED61681C3081C2002CAFCF /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -672,7 +672,7 @@
 				1C837DD61F6AA1F2004B1E60 /* BGMOutputVolumeMenuItem.h */,
 				1C837DD71F6AA1F2004B1E60 /* BGMOutputVolumeMenuItem.mm */,
 				1CE03A55239B56740036908D /* BGMDebugLoggingMenuItem.h */,
-				1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.m */,
+				1CE03A56239B56740036908D /* BGMDebugLoggingMenuItem.mm */,
 				1C780FF01FEF6C3B00497FAD /* BGMSystemSoundsVolume.h */,
 				1C780FF11FEF6C3B00497FAD /* BGMSystemSoundsVolume.mm */,
 				1C3DB48A1BE0888500EC8160 /* BGMAppVolumes.h */,
@@ -1116,7 +1116,7 @@
 			files = (
 				1C86DA6A1F91EE3B000C8CCF /* CAPThread.cpp in Sources */,
 				1C780FF21FEF6C3B00497FAD /* BGMSystemSoundsVolume.mm in Sources */,
-				1CE03A57239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */,
+				1CE03A57239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */,
 				1C4699471BD5C0E400F78043 /* BGMiTunes.m in Sources */,
 				1CD410D41F9EDDAD0070A094 /* BGMAppVolumesController.mm in Sources */,
 				1C1962E41BC94E15008A4DF7 /* CARingBuffer.cpp in Sources */,
@@ -1183,7 +1183,7 @@
 			files = (
 				1C8104B022AD082E00B35517 /* BGMGooglePlayMusicDesktopPlayer.m in Sources */,
 				1C8D830520423E1C00A838F2 /* BGMSwinsian.m in Sources */,
-				1CE03A58239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */,
+				1CE03A58239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */,
 				1CACCF3A1F334447007F86CA /* BGMBackgroundMusicDevice.cpp in Sources */,
 				1C780FF31FEF6C3B00497FAD /* BGMSystemSoundsVolume.mm in Sources */,
 				1CC6593D1F91DEB400B0CCDC /* BGMTermination.mm in Sources */,
@@ -1288,7 +1288,7 @@
 				27FB8C311DE4758A0084DB9D /* BGM_Utils.cpp in Sources */,
 				27FB8C071DD75D0A0084DB9D /* BGMHermes.m in Sources */,
 				2743CA211D86DE780089613B /* BGMDeviceControlSync.cpp in Sources */,
-				1CE03A59239B56740036908D /* BGMDebugLoggingMenuItem.m in Sources */,
+				1CE03A59239B56740036908D /* BGMDebugLoggingMenuItem.mm in Sources */,
 				2743CA0C1D86D7FA0089613B /* CACFArray.cpp in Sources */,
 				1C837DDA1F6AA1F2004B1E60 /* BGMOutputVolumeMenuItem.mm in Sources */,
 				2743CA0D1D86D7FA0089613B /* CACFDictionary.cpp in Sources */,

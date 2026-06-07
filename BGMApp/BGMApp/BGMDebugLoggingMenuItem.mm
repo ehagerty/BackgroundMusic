@@ -17,11 +17,16 @@
 //  BGMDebugLoggingMenuItem.m
 //  BGMApp
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 
 // Self Include
 #import "BGMDebugLoggingMenuItem.h"
+
+// Local Includes
+#import "BGM_Utils.h"
+#import "BGMAudioDeviceManager.h"
+#import "BGMBackgroundMusicDevice.h"
 
 // PublicUtility Includes
 #import "BGMDebugLogging.h"
@@ -33,11 +38,14 @@
 @implementation BGMDebugLoggingMenuItem {
     NSMenuItem* _menuItem;
     BOOL _menuShowingExtraOptions;
+    BGMAudioDeviceManager* _audioDevices;
 }
 
-- (instancetype) initWithMenuItem:(NSMenuItem*)menuItem {
+- (instancetype) initWithMenuItem:(NSMenuItem*)menuItem
+                     audioDevices:(BGMAudioDeviceManager*)audioDevices {
     if ((self = [super init])) {
         _menuItem = menuItem;
+        _audioDevices = audioDevices;
         _menuItem.state =
                 BGMDebugLoggingIsEnabled() ? NSControlStateValueOn : NSControlStateValueOff;
 
@@ -62,6 +70,11 @@
 - (void) toggleDebugLogging {
     BGMSetDebugLoggingEnabled(!BGMDebugLoggingIsEnabled());
     _menuItem.state = BGMDebugLoggingIsEnabled() ? NSControlStateValueOn : NSControlStateValueOff;
+
+    // Keep BGMDriver's debug logging in sync with ours.
+    BGMLogAndSwallowExceptions("BGMDebugLoggingMenuItem::toggleDebugLogging", [&] {
+        [_audioDevices bgmDevice].SetDebugLoggingEnabled(BGMDebugLoggingIsEnabled());
+    });
 
     DebugMsg("BGMDebugLoggingMenuItem::toggleDebugLogging: Debug logging %s",
              BGMDebugLoggingIsEnabled() ? "enabled" : "disabled");

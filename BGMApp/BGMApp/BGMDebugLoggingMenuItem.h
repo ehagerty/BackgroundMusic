@@ -17,7 +17,7 @@
 //  BGMDebugLoggingMenuItem.h
 //  BGMApp
 //
-//  Copyright © 2020 Kyle Neideck
+//  Copyright © 2020, 2026 Kyle Neideck
 //
 //  A menu item in the main menu that enables/disables debug logging. Only visible if you hold the
 //  option down when you click the status bar icon to reveal the main menu.
@@ -30,12 +30,17 @@
 // System Includes
 #import <Cocoa/Cocoa.h>
 
+// Forward Declarations
+@class BGMAudioDeviceManager;
+
 
 #pragma clang assume_nonnull begin
 
 @interface BGMDebugLoggingMenuItem : NSObject
 
-- (instancetype) initWithMenuItem:(NSMenuItem*)menuItem;
+// audioDevices is used to keep BGMDriver's debug logging in sync with BGMApp's.
+- (instancetype) initWithMenuItem:(NSMenuItem*)menuItem
+                     audioDevices:(BGMAudioDeviceManager*)audioDevices;
 
 // True if the main menu is showing hidden items/options because the user held the option key when
 // they clicked the icon. This class makes the debug logging menu item visible if this property has

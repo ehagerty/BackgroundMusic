@@ -354,4 +354,24 @@ CFStringRef BGMBackgroundMusicDevice::GetMusicPlayerBundleID() const
     return bundleID;
 }
 
+#pragma mark Debug Logging
+
+bool BGMBackgroundMusicDevice::GetDebugLoggingEnabled() const
+{
+    CFTypeRef propertyDataRef = GetPropertyData_CFType(kBGMDebugLoggingEnabledAddress);
+
+    ThrowIfNULL(propertyDataRef,
+                CAException(kAudioHardwareIllegalOperationError),
+                "BGMBackgroundMusicDevice::GetDebugLoggingEnabled: !propertyDataRef");
+
+    ThrowIf(CFGetTypeID(propertyDataRef) != CFBooleanGetTypeID(),
+            CAException(kAudioHardwareIllegalOperationError),
+            "BGMBackgroundMusicDevice::GetDebugLoggingEnabled: Property was not a CFBoolean");
+
+    bool enabled = CFBooleanGetValue(static_cast<CFBooleanRef>(propertyDataRef));
+    CFRelease(propertyDataRef);
+
+    return enabled;
+}
+
 #pragma clang assume_nonnull end

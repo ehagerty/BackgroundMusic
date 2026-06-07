@@ -55,6 +55,8 @@
 		2743C9D51D7EF8760089613B /* CADebugger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CC1DF871BE558B000FB8FE4 /* CADebugger.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CADebugger.cpp"; }; };
 		2743C9D71D7EF8760089613B /* CADebugMacros.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CB8B3701BBBD8A4000E2DD1 /* CADebugMacros.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CADebugMacros.cpp"; }; };
 		2743C9D91D7EF8760089613B /* CADebugPrintf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CB8B3781BBBDFA2000E2DD1 /* CADebugPrintf.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CADebugPrintf.cpp"; }; };
+		BDEB1066000000000000C1FE /* BGMDebugLogging.c in Sources */ = {isa = PBXBuildFile; fileRef = BDEB1066000000000000C0FE /* BGMDebugLogging.c */; };
+		BDEB1066000000000000C2FE /* BGMDebugLogging.c in Sources */ = {isa = PBXBuildFile; fileRef = BDEB1066000000000000C0FE /* BGMDebugLogging.c */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-BGMDebugLogging.c"; }; };
 		2743C9DB1D7EF8760089613B /* CADispatchQueue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CB8B3931BBD2418000E2DD1 /* CADispatchQueue.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CADispatchQueue.cpp"; }; };
 		2743C9DE1D7EF8760089613B /* CAHostTimeBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CB8B3871BBCF08A000E2DD1 /* CAHostTimeBase.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CAHostTimeBase.cpp"; }; };
 		2743C9E01D7EF8760089613B /* CAMutex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1CB8B3841BBCEFE8000E2DD1 /* CAMutex.cpp */; settings = {COMPILER_FLAGS = "-frandom-seed=libPublicUtility-CAMutex.cpp"; }; };
@@ -127,6 +129,8 @@
 		1CB8B3741BBBD924000E2DD1 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		1CB8B3751BBBD924000E2DD1 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1CB8B3781BBBDFA2000E2DD1 /* CADebugPrintf.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CADebugPrintf.cpp; path = PublicUtility/CADebugPrintf.cpp; sourceTree = "<group>"; };
+		BDEB1066000000000000C0FE /* BGMDebugLogging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = BGMDebugLogging.c; path = PublicUtility/BGMDebugLogging.c; sourceTree = "<group>"; };
+		BDEB1066000000000000A0FE /* BGMDebugLogging.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = BGMDebugLogging.h; path = PublicUtility/BGMDebugLogging.h; sourceTree = "<group>"; };
 		1CB8B3791BBBDFA2000E2DD1 /* CADebugPrintf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CADebugPrintf.h; path = PublicUtility/CADebugPrintf.h; sourceTree = "<group>"; };
 		1CB8B37B1BBCCF62000E2DD1 /* BGM_PlugIn.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BGM_PlugIn.cpp; sourceTree = "<group>"; };
 		1CB8B37C1BBCCF62000E2DD1 /* BGM_PlugIn.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BGM_PlugIn.h; sourceTree = "<group>"; };
@@ -323,6 +327,8 @@
 				1CB8B3711BBBD8A4000E2DD1 /* CADebugMacros.h */,
 				1CB8B3781BBBDFA2000E2DD1 /* CADebugPrintf.cpp */,
 				1CB8B3791BBBDFA2000E2DD1 /* CADebugPrintf.h */,
+				BDEB1066000000000000C0FE /* BGMDebugLogging.c */,
+				BDEB1066000000000000A0FE /* BGMDebugLogging.h */,
 				1CB8B3931BBD2418000E2DD1 /* CADispatchQueue.cpp */,
 				1CB8B3941BBD2418000E2DD1 /* CADispatchQueue.h */,
 				1CB8B3721BBBD8A4000E2DD1 /* CAException.h */,
@@ -528,6 +534,7 @@
 				27D643C31C9FBE1600737F6E /* BGM_XPCHelper.m in Sources */,
 				27379B821C76D62D0084A24C /* CADebugMacros.cpp in Sources */,
 				27379B831C76D62D0084A24C /* CADebugPrintf.cpp in Sources */,
+				BDEB1066000000000000C1FE /* BGMDebugLogging.c in Sources */,
 				277EE6641C728CDB0037F1EE /* CACFString.cpp in Sources */,
 				277EE6651C728CDB0037F1EE /* CAHostTimeBase.cpp in Sources */,
 				277EE6631C728CC70037F1EE /* CADispatchQueue.cpp in Sources */,
@@ -589,6 +596,7 @@
 				2743C9D51D7EF8760089613B /* CADebugger.cpp in Sources */,
 				2743C9D71D7EF8760089613B /* CADebugMacros.cpp in Sources */,
 				2743C9D91D7EF8760089613B /* CADebugPrintf.cpp in Sources */,
+				BDEB1066000000000000C2FE /* BGMDebugLogging.c in Sources */,
 				2743C9DB1D7EF8760089613B /* CADispatchQueue.cpp in Sources */,
 				2743C9DE1D7EF8760089613B /* CAHostTimeBase.cpp in Sources */,
 				2743C9E01D7EF8760089613B /* CAMutex.cpp in Sources */,
