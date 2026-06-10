@@ -68,16 +68,16 @@ You can download the current version of **Background Music** using the following
 
 ### Option 1
 
-Download **version 0.4.3**:
+Download **version 0.5.0**:
 
-<a href="https://github.com/kyleneideck/BackgroundMusic/releases/download/v0.4.3/BackgroundMusic-0.4.3.pkg"><img
+<a href="https://github.com/kyleneideck/BackgroundMusic/releases/download/v0.5.0/BackgroundMusic-0.5.0.pkg"><img
 src="Images/README/pkg-icon.png" width="32" height="32" align="absmiddle" />
-BackgroundMusic-0.4.3.pkg</a> (771 KB)
+BackgroundMusic-0.5.0.pkg</a> (788 KB)
 
-> <sub>MD5: 8c3bfe26c9cdf27365b9843f719ef188</sub><br/>
-> <sub>SHA256: c1c48a37c83af44ce50bee68879856c96b2f6c97360ce461b1c7d653515be7fd</sub><br/>
+> <sub>MD5: 2405d83ac3e2a29fb2c9bf5beb6eaceb</sub><br/>
+> <sub>SHA256: c7742b48ac2e9ea955fea66e5c13bb56be5f1487e0b12bad93820984bccb69ef</sub><br/>
 > <sub>PGP:
-> [sig](https://github.com/kyleneideck/BackgroundMusic/releases/download/v0.4.3/BackgroundMusic-0.4.3.pkg.asc),
+> [sig](https://github.com/kyleneideck/BackgroundMusic/releases/download/v0.5.0/BackgroundMusic-0.5.0.pkg.asc),
 > [key (0595DF814E41A6F69334C5E2CAA8D9B8E39EC18C)](https://bearisdriving.com/kyle-neideck.gpg)</sub>
 
 ### Option 2
